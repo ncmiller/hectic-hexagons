@@ -2,7 +2,7 @@
 
 # Hectic Hexagons
 
-A clone of Hexic HD, written in C and SDL2.
+A clone of Hexic HD, written in C using the SDL2 library.
 
 ### Install Dependencies
 

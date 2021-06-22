@@ -3,10 +3,10 @@ cmake_minimum_required(VERSION 3.0)
 set(project_name hectic-hexagons)
 project(${project_name})
 
-include_directories(.)
+include_directories(src)
 
 set(sources
-    main.c
+    src/main.c
 )
 set(CMAKE_C_FLAGS "-std=c99 -Wall -Werror")
 
