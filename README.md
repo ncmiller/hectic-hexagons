@@ -2,12 +2,20 @@
 
 # Hectic Hexagons
 
-A clone of Hexic HD, written in C.
+A clone of Hexic HD, written in C and SDL2.
 
 ### Install Dependencies
 
+MacOS:
+
 ```sh
 brew install sdl2
+```
+
+Ubuntu:
+
+```sh
+sudo apt-get install libsdl2-dev
 ```
 
 ### Build
