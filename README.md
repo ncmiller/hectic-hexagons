@@ -9,13 +9,13 @@ A clone of Hexic HD, written in C using the SDL2 library.
 MacOS:
 
 ```sh
-brew install sdl2
+brew install sdl2 sdl2_image sdl2_ttf
 ```
 
 Ubuntu:
 
 ```sh
-sudo apt-get install libsdl2-dev
+sudo apt-get install libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev
 ```
 
 ### Build
