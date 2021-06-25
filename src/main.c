@@ -3,17 +3,28 @@
 #include <stdbool.h>
 
 //-----------------------------------------------------------------------------
-// Constants
+// Constants and types
 //-----------------------------------------------------------------------------
 #define WINDOW_WIDTH 1280
 #define WINDOW_HEIGHT 720
+#define HEX_WIDTH 60
+#define HEX_HEIGHT 52
+
+typedef enum {
+    HEX_ID_GREEN,
+    HEX_ID_BLUE,
+    HEX_ID_YELLOW,
+    HEX_ID_MAGENTA,
+    HEX_ID_PURPLE,
+    HEX_ID_RED,
+} HexID;
 
 //-----------------------------------------------------------------------------
 // Global Data
 //-----------------------------------------------------------------------------
 static SDL_Window* g_window = NULL;
 static SDL_Renderer* g_renderer = NULL;
-static SDL_Texture* g_texture = NULL;
+static SDL_Texture* g_texture_hex_basic = NULL;
 static bool g_follow_mouse = true;
 static int g_mouse_x = 0;
 static int g_mouse_y = 0;
@@ -41,8 +52,8 @@ static void init(void) {
 }
 
 static void close(void) {
-    if (g_texture) {
-        SDL_DestroyTexture(g_texture);
+    if (g_texture_hex_basic) {
+        SDL_DestroyTexture(g_texture_hex_basic);
     }
     if (g_renderer) {
         SDL_DestroyRenderer(g_renderer);
@@ -96,8 +107,8 @@ static SDL_Texture* load_texture(const char* path) {
 static void load_all_media(void) {
     bool all_loaded = true;
 
-    g_texture = load_texture("media/hex_red.png");
-    all_loaded &= (g_texture != NULL);
+    g_texture_hex_basic = load_texture("media/hex_basic.png");
+    all_loaded &= (g_texture_hex_basic != NULL);
 
     if (!all_loaded) {
         SDL_Log("Failed to load media. Exiting.");
@@ -131,33 +142,40 @@ static void update(void) {
     }
 }
 
-// Render the texture without stretching at (x,y).
-static void render_texture_at(SDL_Texture* texture, int x, int y, bool centered) {
-    int src_w = 0;
-    int src_h = 0;
-    SDL_QueryTexture(texture, NULL, NULL, &src_w, &src_h);
+void render_hex_at(HexID id, int x, int y) {
+    SDL_Rect src = {
+        .x = id * HEX_WIDTH,
+        .y = 0,
+        .w = HEX_WIDTH,
+        .h = HEX_HEIGHT,
+    };
 
     SDL_Rect dest = {
         .x = x,
         .y = y,
-        .w = src_w,
-        .h = src_h
+        .w = HEX_WIDTH,
+        .h = HEX_HEIGHT
     };
+
+    bool centered = true;
     if (centered) {
-        dest.x -= src_w / 2;
-        dest.y -= src_h / 2;
+        dest.x -= HEX_WIDTH / 2;
+        dest.y -= HEX_HEIGHT / 2;
     }
-    SDL_RenderCopy(g_renderer, texture, NULL, &dest);
+    SDL_RenderCopy(g_renderer, g_texture_hex_basic, &src, &dest);
 }
 
-static void render_texture_centered_at(SDL_Texture* texture, int x, int y) {
-    render_texture_at(texture, x, y, true);
-}
 
 static void render(void) {
     SDL_RenderClear(g_renderer);
-    SDL_SetRenderDrawColor(g_renderer, 0xFF, 0xFF, 0xFF, 0xFF);
-    render_texture_centered_at(g_texture, g_hex_x, g_hex_y);
+    SDL_SetRenderDrawColor(g_renderer, 0x44, 0x44, 0x44, 0xFF);
+    render_hex_at(HEX_ID_GREEN, 100, 100);
+    render_hex_at(HEX_ID_RED, 100 + HEX_WIDTH, 100);
+    render_hex_at(HEX_ID_MAGENTA, 100 + 2 * HEX_WIDTH, 100);
+    render_hex_at(HEX_ID_PURPLE, 100 + 3 * HEX_WIDTH, 100);
+    render_hex_at(HEX_ID_YELLOW, 100 + 4 * HEX_WIDTH, 100);
+    render_hex_at(HEX_ID_BLUE, 100 + 5 * HEX_WIDTH, 100);
+    render_hex_at(HEX_ID_BLUE, g_hex_x, g_hex_y);
     SDL_RenderPresent(g_renderer);
 }
 
