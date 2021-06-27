@@ -18,6 +18,10 @@ include_directories(
 
 set(source_files
     src/main.c
+    src/graphics.c
+    src/input.c
+    src/game.c
+    src/game_state.c
 )
 
 set(CMAKE_C_FLAGS "-std=c99 -Wall -Werror")
