@@ -1,11 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
-
-typedef struct {
-    int x;
-    int y;
-} Position;
+#include "geometry.h"
 
 typedef struct {
     Position mouse_position;

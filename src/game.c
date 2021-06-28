@@ -1,6 +1,9 @@
 #include "game_state.h"
 
 bool game_init(void) {
+    g_state.game.level = 1;
+    g_state.game.combos_remaining = 50;
+    g_state.game.score = 0;
     return true;
 }
 

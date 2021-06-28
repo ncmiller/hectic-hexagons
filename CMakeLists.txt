@@ -22,6 +22,7 @@ set(source_files
     src/input.c
     src/game.c
     src/game_state.c
+    src/text.c
 )
 
 set(CMAKE_C_FLAGS "-std=c99 -Wall -Werror")

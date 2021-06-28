@@ -4,9 +4,6 @@
 
 #include "game_state.h"
 
-#define WINDOW_WIDTH 1280
-#define WINDOW_HEIGHT 720
-
 static void sdl_init(void) {
     if (0 != SDL_Init(SDL_INIT_EVERYTHING)) {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
@@ -17,6 +14,11 @@ static void sdl_init(void) {
     int initialized = IMG_Init(flags);
     if ((initialized & flags) != flags) {
         SDL_Log("IMG_Init failed init flags: 0x%08X", flags);
+        exit(1);
+    }
+
+    if (TTF_Init() != 0) {
+        SDL_Log("TTF_Init failed, error: %s'\n", TTF_GetError());
         exit(1);
     }
 
@@ -31,6 +33,7 @@ static void sdl_close(void) {
         SDL_DestroyWindow(g_state.window);
     }
 
+    TTF_Quit();
     IMG_Quit();
     SDL_Quit();
 }
@@ -76,9 +79,19 @@ int main(int argc, char* argv[]) {
 
     g_state.running = true;
     while (g_state.running) {
+        Uint32 start = SDL_GetTicks();
         input_update();
         game_update();
         graphics_update();
+        Uint32 update_diff = SDL_GetTicks() - start;
+        graphics_flip();
+        Uint32 render_diff = SDL_GetTicks() - start;
+
+        Statistics* stats = &g_state.statistics;
+        float smoothing = 0.9f;
+        stats->update_ave_ms = (stats->update_ave_ms * smoothing) + ((float)update_diff * (1.0f - smoothing));
+        stats->render_ave_ms = (stats->render_ave_ms * smoothing) + ((float)render_diff * (1.0f - smoothing));
+        stats->total_frames++;
     }
 
     sdl_close();

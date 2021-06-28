@@ -14,9 +14,6 @@ void input_update(void) {
         if (e.type == SDL_QUIT) {
             g_state.running = false;
         }
-        if (e.type == SDL_KEYDOWN) {
-            g_state.running = false;
-        }
         if (e.type == SDL_MOUSEBUTTONUP) {
             g_state.input.mouse_left_click = true;
         }
