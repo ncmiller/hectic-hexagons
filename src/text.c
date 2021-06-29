@@ -17,9 +17,9 @@ void text_set_font(Text* text, TTF_Font* font) {
     text->needs_rendering = true;
 }
 
-void text_set_position(Text* text, int x, int y) {
-    text->position.x = x;
-    text->position.y = y;
+void text_set_point(Text* text, int x, int y) {
+    text->point.x = x;
+    text->point.y = y;
     text->needs_rendering = true;
 }
 
@@ -60,8 +60,8 @@ void text_draw(Text* text) {
 
     if (text->texture) {
         SDL_Rect dest = {
-            .x = text->position.x,
-            .y = text->position.y,
+            .x = text->point.x,
+            .y = text->point.y,
             .w = text->width,
             .h = text->height,
         };

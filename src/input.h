@@ -4,8 +4,10 @@
 #include "geometry.h"
 
 typedef struct {
-    Position mouse_position;
+    Point mouse_point;
     bool mouse_left_click;
+    bool rotate_cw;
+    bool rotate_ccw;
 } Input;
 
 bool input_init(void);
