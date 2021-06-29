@@ -12,8 +12,10 @@ void game_update(void) {
     static bool animation_in_progress = false;
     static double degrees_to_rotate = 0.0f;
     static int animation_start = 0;
-    const int animation_time_ms = 200; // 1000
-    const double rotate_max_scale = 1.25f; // 2.0f
+    const int animation_time_ms = 250;
+    const double rotate_max_scale = 1.5f;
+    // const int animation_time_ms = 1000;
+    // const double rotate_max_scale = 2.0f;
 
     bool start_rotate_animation = g_state.input.rotate_cw || g_state.input.rotate_ccw;
     if (start_rotate_animation && !animation_in_progress) {

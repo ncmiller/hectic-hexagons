@@ -154,16 +154,32 @@ void draw_hex(Hex* hex) {
         .w = HEX_WIDTH,
         .h = HEX_HEIGHT,
     };
+
+    // Translate rotation_point to origin
+    // Scale
+    // Translate back
+    double dest_x = 0.0f;
+    double dest_y = 0.0f;
+    dest_x -= (double)hex->rotation_point.x;
+    dest_y -= (double)hex->rotation_point.y;
+    dest_x *= (double)hex->scale;
+    dest_y *= (double)hex->scale;
+    dest_x += (double)hex->rotation_point.x;
+    dest_y += (double)hex->rotation_point.y;
+    dest_x += (double)hex->hex_point.x;
+    dest_y += (double)hex->hex_point.y;
+
     SDL_Rect dest = {
-        .x = hex->hex_point.x,
-        .y = hex->hex_point.y,
+        .x = dest_x,
+        .y = dest_y,
         .w = HEX_WIDTH * hex->scale,
         .h = HEX_HEIGHT * hex->scale,
     };
 
+    // Rotation point is relative to dest, so we have to account for scaling factor here too.
     SDL_Point rotation_point = {
-        .x = hex->rotation_point.x,
-        .y = hex->rotation_point.y,
+        .x = hex->rotation_point.x * hex->scale,
+        .y = hex->rotation_point.y * hex->scale,
     };
 
     if (0 != SDL_SetTextureAlphaMod(
@@ -173,8 +189,6 @@ void draw_hex(Hex* hex) {
         return;
     }
 
-    // FIXME: This doesn't look right.
-    // It should scale away from the point of rotation.
     if (0 != SDL_RenderCopyEx(
             g_state.renderer,
             g_state.graphics.hex_basic_texture,
