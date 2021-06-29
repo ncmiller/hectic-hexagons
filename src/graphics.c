@@ -62,6 +62,17 @@ static void draw_hex_at(HexID id, int x, int y, bool centered) {
 }
 #endif
 
+static void draw_circle(Point center, int radius, SDL_Color color) {
+    SDL_SetRenderDrawColor(g_state.renderer, color.r, color.g, color.b, color.a);
+    for (int y = -radius; y <= radius; y++) {
+        for (int x = -radius; x <= radius; x++) {
+            if (x * x + y * y <= radius * radius) {
+                SDL_RenderDrawPoint(g_state.renderer, center.x + x, center.y + y);
+            }
+        }
+    }
+}
+
 bool graphics_init(void) {
     if (!load_all_media()) {
         return false;
@@ -109,7 +120,7 @@ bool graphics_init(void) {
     double alpha = 1.0f;
 
     Hex* hex = &g_state.graphics.hexes[0]; // (q,r) = (0,0)
-    hex->hex_id = HEX_ID_GREEN;
+    hex->hex_id = HEX_ID_PURPLE;
     hex->scale = 1.0f;
     hex->hex_point.x = 0;
     hex->hex_point.y = (int)round(0.5f * h);
@@ -202,12 +213,18 @@ void draw_hex(Hex* hex) {
 }
 
 void graphics_update(void) {
-    SDL_RenderClear(g_state.renderer);
     SDL_SetRenderDrawColor(g_state.renderer, 0x44, 0x44, 0x44, 0xFF);
+    SDL_RenderClear(g_state.renderer);
 
     for (int i = 0; i < GRAPHICS_NUM_HEXES; i++) {
         draw_hex(&g_state.graphics.hexes[i]);
     }
+
+    Point cursor = { .x = WINDOW_WIDTH / 2 + HEX_WIDTH, .y = WINDOW_HEIGHT / 2 + HEX_HEIGHT };
+    SDL_Color darkorchid = { .r = 0x99, .g = 0x32, .b = 0xcc, .a = 0xff };
+    SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 0xff };
+    draw_circle(cursor, 8, black);
+    draw_circle(cursor, 7, darkorchid);
 
     snprintf(text_buffer(&g_state.graphics.level_text), TEXT_MAX_LEN, "Level: %u", g_state.game.level);
     text_draw(&g_state.graphics.level_text);

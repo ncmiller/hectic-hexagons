@@ -19,7 +19,7 @@ typedef enum {
 
 typedef struct {
     HexID hex_id;
-    Point hex_point;
+    Point hex_point; // upper-left corner
     double scale;
     Point rotation_point;
     double rotation_angle;
