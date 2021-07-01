@@ -4,6 +4,8 @@
 
 #include "game_state.h"
 
+GameState g_state = {0};
+
 static void sdl_init(void) {
     if (0 != SDL_Init(SDL_INIT_EVERYTHING)) {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
@@ -79,13 +81,13 @@ int main(int argc, char* argv[]) {
 
     g_state.running = true;
     while (g_state.running) {
-        Uint32 start = SDL_GetTicks();
+        uint32_t start = SDL_GetTicks();
         input_update();
         game_update();
         graphics_update();
-        Uint32 update_diff = SDL_GetTicks() - start;
+        uint32_t update_diff = SDL_GetTicks() - start;
         graphics_flip();
-        Uint32 render_diff = SDL_GetTicks() - start;
+        uint32_t render_diff = SDL_GetTicks() - start;
 
         Statistics* stats = &g_state.statistics;
         float smoothing = 0.9f;

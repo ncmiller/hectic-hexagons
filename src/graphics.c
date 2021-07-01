@@ -38,6 +38,7 @@ static bool load_all_media(void) {
     return true;
 }
 
+#if 0
 static void draw_circle(Point center, int radius, SDL_Color color) {
     SDL_SetRenderDrawColor(g_state.renderer, color.r, color.g, color.b, color.a);
     for (int y = -radius; y <= radius; y++) {
@@ -48,6 +49,7 @@ static void draw_circle(Point center, int radius, SDL_Color color) {
         }
     }
 }
+#endif
 
 bool graphics_init(void) {
     if (!load_all_media()) {
@@ -90,53 +92,16 @@ bool graphics_init(void) {
     text_set_point(fps_text, 1280 - fps_text->width - 20, 20);
     text_draw(fps_text);
 
-    double s = 30.0f;
-    double h = sqrt(3) * s;
-    double w = 2 * s;
-    double alpha = 1.0f;
-
-    Hex* hex = &g_state.hexes[0]; // (q,r) = (0,0)
-    hex->hex_id = HEX_ID_PURPLE;
-    hex->scale = 1.0f;
-    hex->hex_point.x = 0;
-    hex->hex_point.y = (int)round(0.5f * h);
-    hex->rotation_point.x = (int)round(w);
-    hex->rotation_point.y = (int)round(0.5f * h);
-    hex->rotation_angle = 0.0f;
-    hex->alpha = alpha;
-    hex->hex_point.x += WINDOW_WIDTH / 2;
-    hex->hex_point.y += WINDOW_HEIGHT / 2;
-
-    hex = &g_state.hexes[1]; // (q, r) = (1,0)
-    hex->hex_id = HEX_ID_BLUE;
-    hex->scale = 1.0f;
-    hex->hex_point.x = (int)round(0.75f * w);
-    hex->hex_point.y = 0;
-    hex->rotation_point.x = (int)round(0.25f * w);
-    hex->rotation_point.y = (int)round(h);
-    hex->rotation_angle = 0.0f;
-    hex->alpha = alpha;
-    hex->hex_point.x += WINDOW_WIDTH / 2;
-    hex->hex_point.y += WINDOW_HEIGHT / 2;
-
-    hex = &g_state.hexes[2]; // (q, r) = (1,1)
-    hex->hex_id = HEX_ID_YELLOW;
-    hex->scale = 1.0f;
-    hex->hex_point.x = (int)round(0.75f * w);
-    hex->hex_point.y = (int)round(h);
-    hex->rotation_point.x = (int)round(0.25f * w);
-    hex->rotation_point.y = 0;
-    hex->rotation_angle = 0.0f;
-    hex->alpha = alpha;
-    hex->hex_point.x += WINDOW_WIDTH / 2;
-    hex->hex_point.y += WINDOW_HEIGHT / 2;
-
     return true;
 }
 
 void draw_hex(Hex* hex) {
+    if (!hex->is_valid) {
+        return;
+    }
+
     SDL_Rect src = {
-        .x = hex->hex_id * HEX_WIDTH,
+        .x = hex->hex_type * HEX_WIDTH,
         .y = 0,
         .w = HEX_WIDTH,
         .h = HEX_HEIGHT,
@@ -145,6 +110,8 @@ void draw_hex(Hex* hex) {
     // Translate rotation_point to origin
     // Scale
     // Translate back
+    //
+    // Without this, the hexes look overlapped when rotating.
     double dest_x = 0.0f;
     double dest_y = 0.0f;
     dest_x -= (double)hex->rotation_point.x;
@@ -192,15 +159,19 @@ void graphics_update(void) {
     SDL_SetRenderDrawColor(g_state.renderer, 0x44, 0x44, 0x44, 0xFF);
     SDL_RenderClear(g_state.renderer);
 
-    for (int i = 0; i < NUM_HEXES; i++) {
-        draw_hex(&g_state.hexes[i]);
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            draw_hex(&g_state.hexes[q][r]);
+        }
     }
 
+#if 0
     Point cursor = { .x = WINDOW_WIDTH / 2 + HEX_WIDTH, .y = WINDOW_HEIGHT / 2 + HEX_HEIGHT };
     SDL_Color darkorchid = { .r = 0x99, .g = 0x32, .b = 0xcc, .a = 0xff };
     SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 0xff };
     draw_circle(cursor, 8, black);
     draw_circle(cursor, 7, darkorchid);
+#endif
 
     snprintf(text_buffer(&g_state.level_text), TEXT_MAX_LEN, "Level: %u", g_state.game.level);
     text_draw(&g_state.level_text);

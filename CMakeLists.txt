@@ -21,7 +21,6 @@ set(source_files
     src/graphics.c
     src/input.c
     src/game.c
-    src/game_state.c
     src/text.c
 )
 
