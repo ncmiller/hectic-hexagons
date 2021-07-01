@@ -38,30 +38,6 @@ static bool load_all_media(void) {
     return true;
 }
 
-#if 0
-static void draw_hex_at(HexID id, int x, int y, bool centered) {
-    SDL_Rect src = {
-        .x = id * HEX_WIDTH,
-        .y = 0,
-        .w = HEX_WIDTH,
-        .h = HEX_HEIGHT,
-    };
-
-    SDL_Rect dest = {
-        .x = x,
-        .y = y,
-        .w = HEX_WIDTH,
-        .h = HEX_HEIGHT
-    };
-
-    if (centered) {
-        dest.x -= HEX_WIDTH / 2;
-        dest.y -= HEX_HEIGHT / 2;
-    }
-    SDL_RenderCopy(g_state.renderer, g_state.graphics.hex_basic_texture, &src, &dest);
-}
-#endif
-
 static void draw_circle(Point center, int radius, SDL_Color color) {
     SDL_SetRenderDrawColor(g_state.renderer, color.r, color.g, color.b, color.a);
     for (int y = -radius; y <= radius; y++) {
@@ -79,7 +55,7 @@ bool graphics_init(void) {
     }
 
     // Upper Left
-    Text* score_text = &g_state.graphics.score_text;
+    Text* score_text = &g_state.score_text;
     text_init(score_text);
     text_set_font(score_text, g_state.graphics.font);
     snprintf(text_buffer(score_text), TEXT_MAX_LEN, "Score: %d", 550);
@@ -87,7 +63,7 @@ bool graphics_init(void) {
     text_set_color(score_text, 0xFF, 0xFF, 0xFF, 0xFF);
     text_draw(score_text);
 
-    Text* level_text = &g_state.graphics.level_text;
+    Text* level_text = &g_state.level_text;
     text_init(level_text);
     text_set_font(level_text, g_state.graphics.font);
     snprintf(text_buffer(level_text), TEXT_MAX_LEN, "Level: %d", 1);
@@ -95,7 +71,7 @@ bool graphics_init(void) {
     text_set_color(level_text, 0xFF, 0xFF, 0xFF, 0xFF);
     text_draw(level_text);
 
-    Text* combos_text = &g_state.graphics.combos_text;
+    Text* combos_text = &g_state.combos_text;
     text_init(combos_text);
     text_set_font(combos_text, g_state.graphics.font);
     snprintf(text_buffer(combos_text), TEXT_MAX_LEN, "Combos remaining: %d", 1);
@@ -104,7 +80,7 @@ bool graphics_init(void) {
     text_draw(combos_text);
 
     // Upper right
-    Text* fps_text = &g_state.graphics.fps_text;
+    Text* fps_text = &g_state.fps_text;
     text_init(fps_text);
     text_set_font(fps_text, g_state.graphics.font);
     snprintf(text_buffer(fps_text), TEXT_MAX_LEN, "FPS: %0.3f\n", 0.0);
@@ -119,7 +95,7 @@ bool graphics_init(void) {
     double w = 2 * s;
     double alpha = 1.0f;
 
-    Hex* hex = &g_state.graphics.hexes[0]; // (q,r) = (0,0)
+    Hex* hex = &g_state.hexes[0]; // (q,r) = (0,0)
     hex->hex_id = HEX_ID_PURPLE;
     hex->scale = 1.0f;
     hex->hex_point.x = 0;
@@ -131,7 +107,7 @@ bool graphics_init(void) {
     hex->hex_point.x += WINDOW_WIDTH / 2;
     hex->hex_point.y += WINDOW_HEIGHT / 2;
 
-    hex = &g_state.graphics.hexes[1]; // (q, r) = (1,0)
+    hex = &g_state.hexes[1]; // (q, r) = (1,0)
     hex->hex_id = HEX_ID_BLUE;
     hex->scale = 1.0f;
     hex->hex_point.x = (int)round(0.75f * w);
@@ -143,7 +119,7 @@ bool graphics_init(void) {
     hex->hex_point.x += WINDOW_WIDTH / 2;
     hex->hex_point.y += WINDOW_HEIGHT / 2;
 
-    hex = &g_state.graphics.hexes[2]; // (q, r) = (1,1)
+    hex = &g_state.hexes[2]; // (q, r) = (1,1)
     hex->hex_id = HEX_ID_YELLOW;
     hex->scale = 1.0f;
     hex->hex_point.x = (int)round(0.75f * w);
@@ -216,8 +192,8 @@ void graphics_update(void) {
     SDL_SetRenderDrawColor(g_state.renderer, 0x44, 0x44, 0x44, 0xFF);
     SDL_RenderClear(g_state.renderer);
 
-    for (int i = 0; i < GRAPHICS_NUM_HEXES; i++) {
-        draw_hex(&g_state.graphics.hexes[i]);
+    for (int i = 0; i < NUM_HEXES; i++) {
+        draw_hex(&g_state.hexes[i]);
     }
 
     Point cursor = { .x = WINDOW_WIDTH / 2 + HEX_WIDTH, .y = WINDOW_HEIGHT / 2 + HEX_HEIGHT };
@@ -226,17 +202,17 @@ void graphics_update(void) {
     draw_circle(cursor, 8, black);
     draw_circle(cursor, 7, darkorchid);
 
-    snprintf(text_buffer(&g_state.graphics.level_text), TEXT_MAX_LEN, "Level: %u", g_state.game.level);
-    text_draw(&g_state.graphics.level_text);
+    snprintf(text_buffer(&g_state.level_text), TEXT_MAX_LEN, "Level: %u", g_state.game.level);
+    text_draw(&g_state.level_text);
 
-    snprintf(text_buffer(&g_state.graphics.combos_text), TEXT_MAX_LEN, "Combos remaining: %u", g_state.game.combos_remaining);
-    text_draw(&g_state.graphics.combos_text);
+    snprintf(text_buffer(&g_state.combos_text), TEXT_MAX_LEN, "Combos remaining: %u", g_state.game.combos_remaining);
+    text_draw(&g_state.combos_text);
 
-    snprintf(text_buffer(&g_state.graphics.score_text), TEXT_MAX_LEN, "Score: %u", g_state.game.score);
-    text_draw(&g_state.graphics.score_text);
+    snprintf(text_buffer(&g_state.score_text), TEXT_MAX_LEN, "Score: %u", g_state.game.score);
+    text_draw(&g_state.score_text);
 
     Statistics* stats = &g_state.statistics;
-    Text* fps_text = &g_state.graphics.fps_text;
+    Text* fps_text = &g_state.fps_text;
     if (stats->total_frames > 0 && stats->total_frames % 60 == 0) {
         snprintf(text_buffer(fps_text), TEXT_MAX_LEN, "FPS: %0.3f", 1000.0f / stats->render_ave_ms);
     }

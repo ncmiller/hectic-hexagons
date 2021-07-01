@@ -1,11 +1,17 @@
 #pragma once
 
 #include <SDL.h>
+#include "geometry.h"
 
 typedef struct {
     Uint32 level;
     Uint32 combos_remaining;
     Uint32 score;
+
+    // Rotation
+    bool rotation_in_progress;
+    double degrees_to_rotate;
+    int rotation_start_time;
 } Game;
 
 bool game_init(void);

@@ -1,6 +1,9 @@
 #include "game_state.h"
 #include "math.h"
 
+#define ROTATION_TIME_MS 150
+#define ROTATION_MAX_SCALE 1.5f
+
 bool game_init(void) {
     g_state.game.level = 1;
     g_state.game.combos_remaining = 50;
@@ -9,70 +12,65 @@ bool game_init(void) {
 }
 
 void game_update(void) {
-    static bool animation_in_progress = false;
-    static double degrees_to_rotate = 0.0f;
-    static int animation_start = 0;
-    const int animation_time_ms = 250;
-    const double rotate_max_scale = 1.5f;
-    // const int animation_time_ms = 1000;
-    // const double rotate_max_scale = 2.0f;
-
-    bool start_rotate_animation = g_state.input.rotate_cw || g_state.input.rotate_ccw;
-    if (start_rotate_animation && !animation_in_progress) {
-        animation_in_progress = true;
+    bool start_rotation = g_state.input.rotate_cw || g_state.input.rotate_ccw;
+    if (start_rotation && !g_state.game.rotation_in_progress) {
+        g_state.game.rotation_in_progress = true;
         if (g_state.input.rotate_cw) {
-            degrees_to_rotate = 120.0f;
+            g_state.input.rotate_cw = false;
+            g_state.game.degrees_to_rotate = 120.0f;
         } else if (g_state.input.rotate_ccw) {
-            degrees_to_rotate = -120.0f;
+            g_state.input.rotate_ccw = false;
+            g_state.game.degrees_to_rotate = -120.0f;
         }
-        animation_start = SDL_GetTicks();
+        g_state.game.rotation_start_time = SDL_GetTicks();
     }
 
-    if (animation_in_progress) {
-        double animation_progress = (double)(SDL_GetTicks() - animation_start) / (double)animation_time_ms;
-        if (animation_progress > 1.0f) {
-            animation_in_progress = false;
+    if (g_state.game.rotation_in_progress) {
+        double rotation_progress =
+            (double)(SDL_GetTicks() - g_state.game.rotation_start_time) / (double)ROTATION_TIME_MS;
+        if (rotation_progress > 1.0f) {
+            g_state.game.rotation_in_progress = false;
 
-            g_state.graphics.hexes[0].rotation_angle = 0.0f;
-            g_state.graphics.hexes[1].rotation_angle = 0.0f;
-            g_state.graphics.hexes[2].rotation_angle = 0.0f;
+            g_state.hexes[0].rotation_angle = 0.0f;
+            g_state.hexes[1].rotation_angle = 0.0f;
+            g_state.hexes[2].rotation_angle = 0.0f;
 
-            g_state.graphics.hexes[0].scale = 1.0f;
-            g_state.graphics.hexes[1].scale = 1.0f;
-            g_state.graphics.hexes[2].scale = 1.0f;
+            g_state.hexes[0].scale = 1.0f;
+            g_state.hexes[1].scale = 1.0f;
+            g_state.hexes[2].scale = 1.0f;
 
-            HexID temp1 = g_state.graphics.hexes[1].hex_id;
-            HexID temp2 = g_state.graphics.hexes[2].hex_id;
-            if (degrees_to_rotate > 0) {
-                g_state.graphics.hexes[1].hex_id = g_state.graphics.hexes[0].hex_id;
-                g_state.graphics.hexes[2].hex_id = temp1;
-                g_state.graphics.hexes[0].hex_id = temp2;
+            HexID temp1 = g_state.hexes[1].hex_id;
+            HexID temp2 = g_state.hexes[2].hex_id;
+            if (g_state.game.degrees_to_rotate > 0) {
+                g_state.hexes[1].hex_id = g_state.hexes[0].hex_id;
+                g_state.hexes[2].hex_id = temp1;
+                g_state.hexes[0].hex_id = temp2;
             } else {
-                g_state.graphics.hexes[1].hex_id = temp2;
-                g_state.graphics.hexes[2].hex_id = g_state.graphics.hexes[0].hex_id;
-                g_state.graphics.hexes[0].hex_id = temp1;
+                g_state.hexes[1].hex_id = temp2;
+                g_state.hexes[2].hex_id = g_state.hexes[0].hex_id;
+                g_state.hexes[0].hex_id = temp1;
             }
         } else {
-            double angle = animation_progress * degrees_to_rotate;
-            g_state.graphics.hexes[0].rotation_angle = angle;
-            g_state.graphics.hexes[1].rotation_angle = angle;
-            g_state.graphics.hexes[2].rotation_angle = angle;
+            double angle = rotation_progress * g_state.game.degrees_to_rotate;
+            g_state.hexes[0].rotation_angle = angle;
+            g_state.hexes[1].rotation_angle = angle;
+            g_state.hexes[2].rotation_angle = angle;
 
             double scale = 1.0f;
-            if (animation_progress < 0.5f) {
+            if (rotation_progress < 0.5f) {
                 double s0 = 1.0f;
-                double s1 = rotate_max_scale;
-                double t = (animation_progress / 0.5f);
+                double s1 = ROTATION_MAX_SCALE;
+                double t = (rotation_progress / 0.5f);
                 scale = (1.0f - t) * s0 + t * s1;
             } else {
-                double s0 = rotate_max_scale;
+                double s0 = ROTATION_MAX_SCALE;
                 double s1 = 1.0f;
-                double t = ((animation_progress - 0.5f) / 0.5f);
+                double t = ((rotation_progress - 0.5f) / 0.5f);
                 scale = (1.0f - t) * s0 + t * s1;
             }
-            g_state.graphics.hexes[0].scale = scale;
-            g_state.graphics.hexes[1].scale = scale;
-            g_state.graphics.hexes[2].scale = scale;
+            g_state.hexes[0].scale = scale;
+            g_state.hexes[1].scale = scale;
+            g_state.hexes[2].scale = scale;
         }
     }
 }

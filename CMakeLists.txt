@@ -10,7 +10,7 @@ find_package(SDL2_ttf REQUIRED)
 find_package(SDL2_image REQUIRED)
 
 include_directories(
-    src
+    src/include
     ${SDL2_INCLUDE_DIR}
     ${SDL2_TTF_INCLUDE_DIR}
     ${SDL2_IMAGE_INCLUDE_DIR}
