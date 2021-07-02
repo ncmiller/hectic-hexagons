@@ -1,5 +1,6 @@
 #include "input.h"
 #include "game_state.h"
+#include "graphics.h"
 #include <SDL.h>
 
 bool input_init(void) {

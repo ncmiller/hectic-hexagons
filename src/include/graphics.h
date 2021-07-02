@@ -5,7 +5,8 @@
 #include <stdbool.h>
 #include "text.h"
 
-#define GRAPHICS_TARGET_FPS 60
+#define LOGICAL_WINDOW_WIDTH 1920
+#define LOGICAL_WINDOW_HEIGHT 1080
 
 typedef struct {
     SDL_Texture* hex_basic_texture;

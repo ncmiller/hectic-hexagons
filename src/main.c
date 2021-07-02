@@ -4,6 +4,7 @@
 
 #include "game_state.h"
 
+// All game state data is stored in here
 GameState g_state = {0};
 
 static void sdl_init(void) {
@@ -44,7 +45,7 @@ static void sdl_create_window(void) {
     g_state.window = SDL_CreateWindow(
         "Hectic Hexagons",
         SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        WINDOW_WIDTH, WINDOW_HEIGHT,
+        LOGICAL_WINDOW_WIDTH, LOGICAL_WINDOW_HEIGHT,
         0
     );
 
@@ -64,6 +65,8 @@ static void sdl_create_window(void) {
         sdl_close();
         exit(1);
     }
+
+    SDL_RenderSetLogicalSize(g_state.renderer, LOGICAL_WINDOW_WIDTH, LOGICAL_WINDOW_HEIGHT);
 }
 
 int main(int argc, char* argv[]) {

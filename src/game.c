@@ -23,15 +23,15 @@ static void spawn_hex(HexType type, int q, int r) {
         return;
     }
 
-    const double s = 30.0f;        // radius of hex
-    const double h = sqrt(3) * s;  // height of flat-top hex
-    const double w = 2 * s;        // width of flat-top hex
+    const double s = HEX_WIDTH / 2;  // radius of hex
+    const double h = sqrt(3) * s;    // height of flat-top hex
+    const double w = 2 * s;          // width of flat-top hex
 
     const double board_width = 0.75f * w * HEX_NUM_COLUMNS;
     const double board_height = h * HEX_NUM_ROWS;
 
-    const int board_x = WINDOW_WIDTH / 2 - board_width / 2;
-    const int board_y = WINDOW_HEIGHT / 2 - board_height / 2;
+    const int board_x = LOGICAL_WINDOW_WIDTH / 2 - board_width / 2;
+    const int board_y = LOGICAL_WINDOW_HEIGHT / 2 - board_height / 2;
 
     hex->hex_type = type;
     hex->scale = 1.0f;

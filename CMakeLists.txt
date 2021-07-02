@@ -24,7 +24,13 @@ set(source_files
     src/text.c
 )
 
-set(CMAKE_C_FLAGS "-std=c99 -Wall -Werror")
+set(ENABLE_DEBUG 1)
+
+if(ENABLE_DEBUG)
+    set(CMAKE_C_FLAGS "-std=c99 -O0 -g -Wall -Werror")
+else() # Release
+    set(CMAKE_C_FLAGS "-std=c99 -O2 -Wall -Werror")
+endif()
 
 add_executable(${project_name} ${source_files})
 target_link_libraries(${project_name} PRIVATE

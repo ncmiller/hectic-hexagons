@@ -4,10 +4,14 @@
 #include "game.h"
 #include "graphics.h"
 
-#define WINDOW_WIDTH 1280
-#define WINDOW_HEIGHT 720
 #define HEX_NUM_COLUMNS 10
 #define HEX_NUM_ROWS 9
+
+// Source png is 60 x 52, scaling up by 1.75
+#define HEX_SOURCE_WIDTH 60
+#define HEX_SOURCE_HEIGHT 52
+#define HEX_WIDTH 105
+#define HEX_HEIGHT 91
 
 typedef struct {
     float render_ave_ms;
@@ -60,5 +64,4 @@ typedef struct {
     Hex hexes[HEX_NUM_COLUMNS][HEX_NUM_ROWS];
 } GameState;
 
-// All game state data is stored in here.
 extern GameState g_state;
