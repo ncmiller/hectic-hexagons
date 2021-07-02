@@ -19,6 +19,14 @@ void input_update(void) {
                 g_state.input.rotate_ccw = true;
             } else if (e.key.keysym.sym == SDLK_ESCAPE) {
                 g_state.running = false;
+            } else if (e.key.keysym.sym == SDLK_UP) {
+                g_state.input.up = true;
+            } else if (e.key.keysym.sym == SDLK_DOWN) {
+                g_state.input.down = true;
+            } else if (e.key.keysym.sym == SDLK_LEFT) {
+                g_state.input.left = true;
+            } else if (e.key.keysym.sym == SDLK_RIGHT) {
+                g_state.input.right = true;
             }
         }
     }

@@ -40,7 +40,6 @@ static bool load_all_media(void) {
     return true;
 }
 
-#if 0
 static void draw_circle(Point center, int radius, SDL_Color color) {
     SDL_SetRenderDrawColor(g_state.renderer, color.r, color.g, color.b, color.a);
     for (int y = -radius; y <= radius; y++) {
@@ -51,7 +50,6 @@ static void draw_circle(Point center, int radius, SDL_Color color) {
         }
     }
 }
-#endif
 
 bool graphics_init(void) {
     if (!load_all_media()) {
@@ -109,19 +107,19 @@ void draw_hex(Hex* hex) {
         .h = HEX_SOURCE_HEIGHT,
     };
 
-    // Translate rotation_point to origin
+    // Translate rotation point to origin
     // Scale
     // Translate back
     //
     // Without this, the hexes look overlapped when rotating.
     double dest_x = 0.0f;
     double dest_y = 0.0f;
-    dest_x -= (double)hex->rotation_point.x;
-    dest_y -= (double)hex->rotation_point.y;
+    dest_x -= (double)g_state.cursor.screen_point.x;
+    dest_y -= (double)g_state.cursor.screen_point.y;
     dest_x *= (double)hex->scale;
     dest_y *= (double)hex->scale;
-    dest_x += (double)hex->rotation_point.x;
-    dest_y += (double)hex->rotation_point.y;
+    dest_x += (double)g_state.cursor.screen_point.x;
+    dest_y += (double)g_state.cursor.screen_point.y;
     dest_x += (double)hex->hex_point.x;
     dest_y += (double)hex->hex_point.y;
 
@@ -134,8 +132,8 @@ void draw_hex(Hex* hex) {
 
     // Rotation point is relative to dest, so we have to account for scaling factor here too.
     SDL_Point rotation_point = {
-        .x = hex->rotation_point.x * hex->scale,
-        .y = hex->rotation_point.y * hex->scale,
+        .x = g_state.cursor.screen_point.x * hex->scale,
+        .y = g_state.cursor.screen_point.y * hex->scale,
     };
 
     if (0 != SDL_SetTextureAlphaMod(
@@ -167,13 +165,10 @@ void graphics_update(void) {
         }
     }
 
-#if 0
-    Point cursor = { .x = g_state.window.w / 2 + HEX_WIDTH, .y = g_state.window.w / 2 + HEX_HEIGHT };
     SDL_Color darkorchid = { .r = 0x99, .g = 0x32, .b = 0xcc, .a = 0xff };
     SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 0xff };
-    draw_circle(cursor, 8, black);
-    draw_circle(cursor, 7, darkorchid);
-#endif
+    draw_circle(g_state.cursor.screen_point, 12, black);
+    draw_circle(g_state.cursor.screen_point, 11, darkorchid);
 
     snprintf(text_buffer(&g_state.level_text), TEXT_MAX_LEN, "Level: %u", g_state.game.level);
     text_draw(&g_state.level_text);

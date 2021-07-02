@@ -9,7 +9,6 @@ typedef struct {
     uint32_t score;
 
     // Rotation
-    // TODO - might want to replace this with a vector of animations
     bool rotation_in_progress;
     double degrees_to_rotate;
     int rotation_start_time;
