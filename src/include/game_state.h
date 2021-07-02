@@ -35,14 +35,27 @@ typedef struct {
     bool is_valid;
     HexType hex_type;
     Point hex_point; // TODO - remove, precompute
+    bool is_rotating;
     double scale;
     double rotation_angle;
     double alpha;
 } Hex;
 
 typedef struct {
-    bool is_visible;
+    // We use the "even-q" indexing scheme described on this page:
+    // https://www.redblobgames.com/grids/hexagons
+    uint8_t q;
+    uint8_t r;
+} HexCoord;
 
+typedef struct {
+    // It's 7 because there are up to 6 surrounding hexes and we might count the one
+    // in the middle too if it's neighbors of a starflower.
+    HexCoord coords[7];
+    size_t num_neighbors;
+} HexNeighbors;
+
+typedef struct {
     // We use a special coordinate system for the cursor (q is column, r is row).
     //
     // Cursor (q,r) == (0,0) is top left between the trio of hex coords (0,0), (1,0), (1,1).
@@ -52,8 +65,12 @@ typedef struct {
     // TODO - how to handle starflowers and black pearls?
     int q;
     int r;
+} CursorCoord;
 
-    Point screen_point; // TODO - remove, precompute
+typedef struct {
+    bool is_visible;
+    CursorCoord coord;
+    Point screen_point; // TODO - remove, precompute with lookup table
 } Cursor;
 
 typedef struct {
@@ -72,6 +89,7 @@ typedef struct {
     SDL_Window* window;
     SDL_Renderer* renderer;
     bool running;
+
     Statistics statistics;
     Constants constants;
     Input input;
@@ -83,14 +101,8 @@ typedef struct {
     Text score_text;
     Text fps_text;
 
-    // We use the "even-q" indexing scheme described on this page:
-    // https://www.redblobgames.com/grids/hexagons
-    //
     // On the last row, only the odd column hexes are valid. This is consistent
     // with the original Hexic HD board.
-    //
-    // For even columns, the last row does not have a valid hex. Only odd columns
-    // have valid hexes.
     Hex hexes[HEX_NUM_COLUMNS][HEX_NUM_ROWS];
     Cursor cursor;
 } GameState;

@@ -107,51 +107,67 @@ void draw_hex(Hex* hex) {
         .h = HEX_SOURCE_HEIGHT,
     };
 
-    // Translate rotation point to origin
-    // Scale
-    // Translate back
-    //
-    // Without this, the hexes look overlapped when rotating.
-    double dest_x = 0.0f;
-    double dest_y = 0.0f;
-    dest_x -= (double)g_state.cursor.screen_point.x;
-    dest_y -= (double)g_state.cursor.screen_point.y;
-    dest_x *= (double)hex->scale;
-    dest_y *= (double)hex->scale;
-    dest_x += (double)g_state.cursor.screen_point.x;
-    dest_y += (double)g_state.cursor.screen_point.y;
-    dest_x += (double)hex->hex_point.x;
-    dest_y += (double)hex->hex_point.y;
+    if (!hex->is_rotating) {
+        SDL_Rect dest = {
+            .x = hex->hex_point.x,
+            .y = hex->hex_point.y,
+            .w = HEX_WIDTH,
+            .h = HEX_HEIGHT,
+        };
+        if (0 != SDL_RenderCopy(g_state.renderer, g_state.graphics.hex_basic_texture, &src, &dest)) {
+            SDL_Log("SDL_RenderCopy error %s", SDL_GetError());
+        }
+    } else {
+        // Rotation point is relative to hex
+        SDL_Point rotation_point = {
+            .x = g_state.cursor.screen_point.x - hex->hex_point.x,
+            .y = g_state.cursor.screen_point.y - hex->hex_point.y,
+        };
 
-    SDL_Rect dest = {
-        .x = dest_x,
-        .y = dest_y,
-        .w = HEX_WIDTH * hex->scale,
-        .h = HEX_HEIGHT * hex->scale,
-    };
+        // Translate rotation point to origin
+        // Scale
+        // Translate back
+        // Without this, the hexes look overlapped when rotating.
+        double dest_x = 0.0f;
+        double dest_y = 0.0f;
+        dest_x -= (double)rotation_point.x;
+        dest_y -= (double)rotation_point.y;
+        dest_x *= (double)hex->scale;
+        dest_y *= (double)hex->scale;
+        dest_x += (double)rotation_point.x;
+        dest_y += (double)rotation_point.y;
+        dest_x += (double)hex->hex_point.x;
+        dest_y += (double)hex->hex_point.y;
 
-    // Rotation point is relative to dest, so we have to account for scaling factor here too.
-    SDL_Point rotation_point = {
-        .x = g_state.cursor.screen_point.x * hex->scale,
-        .y = g_state.cursor.screen_point.y * hex->scale,
-    };
+        SDL_Rect dest = {
+            .x = dest_x,
+            .y = dest_y,
+            .w = HEX_WIDTH * hex->scale,
+            .h = HEX_HEIGHT * hex->scale,
+        };
 
-    if (0 != SDL_SetTextureAlphaMod(
-            g_state.graphics.hex_basic_texture,
-            hex->alpha * 255.0f)) {
-        SDL_Log("SDL_SetTextureAlphaMod error %s", SDL_GetError());
-        return;
-    }
+        // Rotation point is relative to dest, so we have to account for scaling factor here too.
+        rotation_point.x *= hex->scale;
+        rotation_point.y *= hex->scale;
 
-    if (0 != SDL_RenderCopyEx(
-            g_state.renderer,
-            g_state.graphics.hex_basic_texture,
-            &src,
-            &dest,
-            hex->rotation_angle,
-            &rotation_point,
-            SDL_FLIP_NONE)) {
-        SDL_Log("SDL_RenderCopyEx error %s", SDL_GetError());
+#if 0
+        if (0 != SDL_SetTextureAlphaMod(
+                g_state.graphics.hex_basic_texture,
+                hex->alpha * 255.0f)) {
+            SDL_Log("SDL_SetTextureAlphaMod error %s", SDL_GetError());
+            return;
+        }
+#endif
+        if (0 != SDL_RenderCopyEx(
+                g_state.renderer,
+                g_state.graphics.hex_basic_texture,
+                &src,
+                &dest,
+                hex->rotation_angle,
+                &rotation_point,
+                SDL_FLIP_NONE)) {
+            SDL_Log("SDL_RenderCopyEx error %s", SDL_GetError());
+        }
     }
 }
 
@@ -159,9 +175,23 @@ void graphics_update(void) {
     SDL_SetRenderDrawColor(g_state.renderer, 0x44, 0x44, 0x44, 0xFF);
     SDL_RenderClear(g_state.renderer);
 
+    // Non-rotating hexes
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
-            draw_hex(&g_state.hexes[q][r]);
+            Hex* hex = &g_state.hexes[q][r];
+            if (!hex->is_rotating) {
+                draw_hex(hex);
+            }
+        }
+    }
+
+    // Rotating hexes
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            Hex* hex = &g_state.hexes[q][r];
+            if (hex->is_rotating) {
+                draw_hex(hex);
+            }
         }
     }
 

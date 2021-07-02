@@ -94,8 +94,8 @@ void set_cursor_position(int q, int r) {
     if (q < 0 || r < 0 || q >= CURSOR_NUM_COLUMNS || r >= CURSOR_NUM_ROWS) {
         return;
     }
-    g_state.cursor.q = q;
-    g_state.cursor.r = r;
+    g_state.cursor.coord.q = q;
+    g_state.cursor.coord.r = r;
     g_state.cursor.screen_point = transform_cursor_to_screen(q, r);
 }
 
@@ -122,16 +122,16 @@ bool game_init(void) {
 static void handle_input(void) {
     if (input->up) {
         input->up = false;
-        set_cursor_position(g_state.cursor.q, g_state.cursor.r - 1);
+        set_cursor_position(g_state.cursor.coord.q, g_state.cursor.coord.r - 1);
     } else if (input->down) {
         input->down = false;
-        set_cursor_position(g_state.cursor.q, g_state.cursor.r + 1);
+        set_cursor_position(g_state.cursor.coord.q, g_state.cursor.coord.r + 1);
     } else if (input->right) {
         input->right = false;
-        set_cursor_position(g_state.cursor.q + 1, g_state.cursor.r);
+        set_cursor_position(g_state.cursor.coord.q + 1, g_state.cursor.coord.r);
     } else if (input->left) {
         input->left = false;
-        set_cursor_position(g_state.cursor.q - 1, g_state.cursor.r);
+        set_cursor_position(g_state.cursor.coord.q - 1, g_state.cursor.coord.r);
     }
 
     bool start_rotation = input->rotate_cw || input->rotate_ccw;
@@ -148,55 +148,143 @@ static void handle_input(void) {
     }
 }
 
+static void get_cursor_neighbors(HexNeighbors* neighbors) {
+    const CursorCoord* cursor = &g_state.cursor.coord;
+    bool r_odd = (cursor->r & 1);
+    bool q_odd = (cursor->q & 1);
+
+    // There's probably a smarter way to do this but this works...
+    if (!q_odd && !r_odd) {
+        HexCoord left_hex = {0};
+        left_hex.q = cursor->q;
+        left_hex.r = cursor->r / 2;
+
+        neighbors->coords[neighbors->num_neighbors].q = left_hex.q;
+        neighbors->coords[neighbors->num_neighbors].r = left_hex.r;
+        neighbors->num_neighbors++;
+
+        neighbors->coords[neighbors->num_neighbors].q = left_hex.q + 1;
+        neighbors->coords[neighbors->num_neighbors].r = left_hex.r;
+        neighbors->num_neighbors++;
+
+        neighbors->coords[neighbors->num_neighbors].q = left_hex.q + 1;
+        neighbors->coords[neighbors->num_neighbors].r = left_hex.r + 1;
+        neighbors->num_neighbors++;
+    } else if (!q_odd && r_odd) {
+        HexCoord right_hex = {0};
+        right_hex.q = cursor->q + 1;
+        right_hex.r = cursor->r / 2 + 1;
+
+        neighbors->coords[neighbors->num_neighbors].q = right_hex.q;
+        neighbors->coords[neighbors->num_neighbors].r = right_hex.r;
+        neighbors->num_neighbors++;
+
+        neighbors->coords[neighbors->num_neighbors].q = right_hex.q - 1;
+        neighbors->coords[neighbors->num_neighbors].r = right_hex.r;
+        neighbors->num_neighbors++;
+
+        neighbors->coords[neighbors->num_neighbors].q = right_hex.q - 1;
+        neighbors->coords[neighbors->num_neighbors].r = right_hex.r - 1;
+        neighbors->num_neighbors++;
+    } else if (q_odd && !r_odd) {
+        HexCoord right_hex = {0};
+        right_hex.q = cursor->q + 1;
+        right_hex.r = cursor->r / 2;
+
+        neighbors->coords[neighbors->num_neighbors].q = right_hex.q;
+        neighbors->coords[neighbors->num_neighbors].r = right_hex.r;
+        neighbors->num_neighbors++;
+
+        neighbors->coords[neighbors->num_neighbors].q = right_hex.q - 1;
+        neighbors->coords[neighbors->num_neighbors].r = right_hex.r + 1;
+        neighbors->num_neighbors++;
+
+        neighbors->coords[neighbors->num_neighbors].q = right_hex.q - 1;
+        neighbors->coords[neighbors->num_neighbors].r = right_hex.r;
+        neighbors->num_neighbors++;
+    } else { // q_odd && r_odd
+        HexCoord left_hex = {0};
+        left_hex.q = cursor->q;
+        left_hex.r = cursor->r / 2 + 1;
+
+        neighbors->coords[neighbors->num_neighbors].q = left_hex.q;
+        neighbors->coords[neighbors->num_neighbors].r = left_hex.r;
+        neighbors->num_neighbors++;
+
+        neighbors->coords[neighbors->num_neighbors].q = left_hex.q + 1;
+        neighbors->coords[neighbors->num_neighbors].r = left_hex.r - 1;
+        neighbors->num_neighbors++;
+
+        neighbors->coords[neighbors->num_neighbors].q = left_hex.q + 1;
+        neighbors->coords[neighbors->num_neighbors].r = left_hex.r;
+        neighbors->num_neighbors++;
+    }
+
+    // TODO - handle starflower and black pearl
+}
+
 static void handle_rotation(void) {
+    HexNeighbors neighbors = {0};
+    get_cursor_neighbors(&neighbors);
+
+    Hex* hex0 = &g_state.hexes[neighbors.coords[0].q][neighbors.coords[0].r];
+    Hex* hex1 = &g_state.hexes[neighbors.coords[1].q][neighbors.coords[1].r];
+    Hex* hex2 = &g_state.hexes[neighbors.coords[2].q][neighbors.coords[2].r];
+
     double rotation_progress =
         (double)(SDL_GetTicks() - game->rotation_start_time) / (double)ROTATION_TIME_MS;
     if (rotation_progress > 1.0f) {
         g_state.game.rotation_in_progress = false;
 
-        // Now that the rotation animation is done, we can rotate the hexes in memory
-        // TODO
-        // g_state.hexes[0].rotation_angle = 0.0f;
-        // g_state.hexes[1].rotation_angle = 0.0f;
-        // g_state.hexes[2].rotation_angle = 0.0f;
+        hex0->is_rotating = false;
+        hex1->is_rotating = false;
+        hex2->is_rotating = false;
 
-        // g_state.hexes[0].scale = 1.0f;
-        // g_state.hexes[1].scale = 1.0f;
-        // g_state.hexes[2].scale = 1.0f;
+        hex0->rotation_angle = 0.0f;
+        hex1->rotation_angle = 0.0f;
+        hex2->rotation_angle = 0.0f;
 
-        // HexType temp1 = g_state.hexes[1].hex_type;
-        // HexType temp2 = g_state.hexes[2].hex_type;
-        // if (g_state.game.degrees_to_rotate > 0) {
-        //     g_state.hexes[1].hex_type = g_state.hexes[0].hex_type;
-        //     g_state.hexes[2].hex_type = temp1;
-        //     g_state.hexes[0].hex_type = temp2;
-        // } else {
-        //     g_state.hexes[1].hex_type = temp2;
-        //     g_state.hexes[2].hex_type = g_state.hexes[0].hex_type;
-        //     g_state.hexes[0].hex_type = temp1;
-        // }
+        hex0->scale = 1.0f;
+        hex1->scale = 1.0f;
+        hex2->scale = 1.0f;
+
+        HexType temp1 = hex1->hex_type;
+        HexType temp2 = hex2->hex_type;
+        if (g_state.game.degrees_to_rotate > 0) {
+            hex1->hex_type = hex0->hex_type;
+            hex2->hex_type = temp1;
+            hex0->hex_type = temp2;
+        } else {
+            hex1->hex_type = temp2;
+            hex2->hex_type = hex0->hex_type;
+            hex0->hex_type = temp1;
+        }
     } else {
-        // TODO
-        // double angle = rotation_progress * g_state.game.degrees_to_rotate;
-        // g_state.hexes[0].rotation_angle = angle;
-        // g_state.hexes[1].rotation_angle = angle;
-        // g_state.hexes[2].rotation_angle = angle;
+        hex0->is_rotating = true;
+        hex1->is_rotating = true;
+        hex2->is_rotating = true;
 
-        // double scale = 1.0f;
-        // if (rotation_progress < 0.5f) {
-        //     double s0 = 1.0f;
-        //     double s1 = ROTATION_MAX_SCALE;
-        //     double t = (rotation_progress / 0.5f);
-        //     scale = (1.0f - t) * s0 + t * s1;
-        // } else {
-        //     double s0 = ROTATION_MAX_SCALE;
-        //     double s1 = 1.0f;
-        //     double t = ((rotation_progress - 0.5f) / 0.5f);
-        //     scale = (1.0f - t) * s0 + t * s1;
-        // }
-        // g_state.hexes[0].scale = scale;
-        // g_state.hexes[1].scale = scale;
-        // g_state.hexes[2].scale = scale;
+        double angle = rotation_progress * g_state.game.degrees_to_rotate;
+        hex0->rotation_angle = angle;
+        hex1->rotation_angle = angle;
+        hex2->rotation_angle = angle;
+
+        double scale = 1.0f;
+        if (rotation_progress < 0.5f) {
+            double s0 = 1.0f;
+            double s1 = ROTATION_MAX_SCALE;
+            double t = (rotation_progress / 0.5f);
+            scale = (1.0f - t) * s0 + t * s1;
+        } else {
+            double s0 = ROTATION_MAX_SCALE;
+            double s1 = 1.0f;
+            double t = ((rotation_progress - 0.5f) / 0.5f);
+            scale = (1.0f - t) * s0 + t * s1;
+        }
+
+        hex0->scale = scale;
+        hex1->scale = scale;
+        hex2->scale = scale;
     }
 }
 
