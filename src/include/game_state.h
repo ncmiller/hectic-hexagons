@@ -33,7 +33,7 @@ typedef enum {
 
 typedef struct {
     bool is_valid;
-    HexType hex_type;
+    HexType type;
     Point hex_point; // TODO - remove, precompute
     bool is_rotating;
     double scale;

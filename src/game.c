@@ -71,7 +71,31 @@ static Point transform_cursor_to_screen(int q, int r) {
     return p;
 }
 
-static void spawn_hex(HexType type, int q, int r) {
+// Returns valid hex neighbors of hex (q, r) in clockwise order
+static void get_hex_neighbors(int q, int r, HexNeighbors* neighbors) {
+    // Top
+    if (q > 0) {
+        neighbors->coords[neighbors->num_neighbors].q = q - 1;
+        neighbors->coords[neighbors->num_neighbors].r = r;
+        neighbors->num_neighbors++;
+    }
+
+    // Top-right
+
+    // Bottom-right
+    // Bottom
+    // Bottom-left
+    // Top-left
+}
+
+// Query, to detemine if a hex of specified type at (q,r) would produce a match
+static bool hex_would_match(HexType type, int q, int r) {
+    HexNeighbors neighbors;
+    get_hex_neighbors(q, r, &neighbors);
+    return false;
+}
+
+static void spawn_hex(int q, int r, bool allow_match) {
     assert(q < HEX_NUM_COLUMNS && r < HEX_NUM_ROWS);
     Hex* hex = &g_state.hexes[q][r];
 
@@ -83,7 +107,17 @@ static void spawn_hex(HexType type, int q, int r) {
     }
 
     hex->is_valid = true;
-    hex->hex_type = type;
+    HexType random_type = rand_in_range(HEX_TYPE_GREEN, HEX_TYPE_RED);
+    if (!allow_match) {
+        // Resample until we find a type that doesn't match neighbors
+        int iteration = 0;
+        while (hex_would_match(random_type, q, r)) {
+            assert(iteration < 100);
+            random_type = rand_in_range(HEX_TYPE_GREEN, HEX_TYPE_RED);
+            iteration++;
+        }
+    }
+    hex->type = random_type;
     hex->hex_point = transform_hex_to_screen(q, r);
     hex->scale = 1.0f;
     hex->rotation_angle = 0.0f;
@@ -109,7 +143,7 @@ bool game_init(void) {
     g_state.game.score = 0;
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
-            spawn_hex(rand_in_range(0, NUM_HEX_TYPES - 1), q, r);
+            spawn_hex(q, r, false);
         }
     }
 
@@ -252,16 +286,16 @@ static void handle_rotation(void) {
         hex1->scale = 1.0f;
         hex2->scale = 1.0f;
 
-        HexType temp1 = hex1->hex_type;
-        HexType temp2 = hex2->hex_type;
+        HexType temp1 = hex1->type;
+        HexType temp2 = hex2->type;
         if (g_state.game.degrees_to_rotate > 0) {
-            hex1->hex_type = hex0->hex_type;
-            hex2->hex_type = temp1;
-            hex0->hex_type = temp2;
+            hex1->type = hex0->type;
+            hex2->type = temp1;
+            hex0->type = temp2;
         } else {
-            hex1->hex_type = temp2;
-            hex2->hex_type = hex0->hex_type;
-            hex0->hex_type = temp1;
+            hex1->type = temp2;
+            hex2->type = hex0->type;
+            hex0->type = temp1;
         }
     } else {
         hex0->is_rotating = true;

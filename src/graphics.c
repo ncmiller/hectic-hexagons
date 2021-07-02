@@ -101,7 +101,7 @@ void draw_hex(Hex* hex) {
     }
 
     SDL_Rect src = {
-        .x = hex->hex_type * HEX_SOURCE_WIDTH,
+        .x = hex->type * HEX_SOURCE_WIDTH,
         .y = 0,
         .w = HEX_SOURCE_WIDTH,
         .h = HEX_SOURCE_HEIGHT,
@@ -187,11 +187,13 @@ void graphics_update(void) {
 
     // Rotating hexes
     // TODO - replace with cursor neighbors instead of looping over all
-    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
-        for (int r = 0; r < HEX_NUM_ROWS; r++) {
-            Hex* hex = &g_state.hexes[q][r];
-            if (hex->is_rotating) {
-                draw_hex(hex);
+    if (g_state.game.rotation_in_progress) {
+        for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+            for (int r = 0; r < HEX_NUM_ROWS; r++) {
+                Hex* hex = &g_state.hexes[q][r];
+                if (hex->is_rotating) {
+                    draw_hex(hex);
+                }
             }
         }
     }
