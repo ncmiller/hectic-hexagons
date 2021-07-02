@@ -186,6 +186,7 @@ void graphics_update(void) {
     }
 
     // Rotating hexes
+    // TODO - replace with cursor neighbors instead of looping over all
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
             Hex* hex = &g_state.hexes[q][r];

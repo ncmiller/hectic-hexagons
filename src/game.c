@@ -120,6 +120,10 @@ bool game_init(void) {
 }
 
 static void handle_input(void) {
+    if (game->rotation_in_progress) {
+        return;
+    }
+
     if (input->up) {
         input->up = false;
         set_cursor_position(g_state.cursor.coord.q, g_state.cursor.coord.r - 1);
