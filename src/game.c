@@ -71,27 +71,71 @@ static Point transform_cursor_to_screen(int q, int r) {
     return p;
 }
 
-// Returns valid hex neighbors of hex (q, r) in clockwise order
-static void get_hex_neighbors(int q, int r, HexNeighbors* neighbors) {
-    // Top
-    if (q > 0) {
-        neighbors->coords[neighbors->num_neighbors].q = q - 1;
-        neighbors->coords[neighbors->num_neighbors].r = r;
-        neighbors->num_neighbors++;
+static bool hex_coord_is_valid(HexCoord coord) {
+    if (coord.q < 0 || coord.r < 0) {
+        return false;
     }
+    if (coord.q >= HEX_NUM_COLUMNS || coord.r >= HEX_NUM_ROWS) {
+        return false;
+    }
+    if ((coord.r == HEX_NUM_ROWS - 1) && ((coord.q & 1) == 0)) {
+        return false;
+    }
+    return true;
+}
+
+// Returns hex neighbors of hex (q, r) in clockwise order.
+// Note that some of these may be invalid or outside of bounds.
+// Caller should check them with hex_coord_is_valid(q, r).
+static void get_hex_neighbors(int q, int r, HexNeighbors* neighbors) {
+    bool q_odd = (q & 1);
+    HexCoord new_coord = {0};
+
+    // Top
+    new_coord.q = q;
+    new_coord.r = r - 1;
+    neighbors->coords[neighbors->num_neighbors++] = new_coord;
 
     // Top-right
+    new_coord.q = q + 1;
+    new_coord.r = (q_odd ? r - 1 : r);
+    neighbors->coords[neighbors->num_neighbors++] = new_coord;
 
     // Bottom-right
+    new_coord.q = q + 1;
+    new_coord.r = (q_odd ? r : r + 1);
+    neighbors->coords[neighbors->num_neighbors++] = new_coord;
+
     // Bottom
+    new_coord.q = q;
+    new_coord.r = r + 1;
+    neighbors->coords[neighbors->num_neighbors++] = new_coord;
+
     // Bottom-left
+    new_coord.q = q - 1;
+    new_coord.r = (q_odd ? r : r + 1);
+    neighbors->coords[neighbors->num_neighbors++] = new_coord;
+
     // Top-left
+    new_coord.q = q - 1;
+    new_coord.r = (q_odd ? r - 1 : r);
+    neighbors->coords[neighbors->num_neighbors++] = new_coord;
 }
 
 // Query, to detemine if a hex of specified type at (q,r) would produce a match
 static bool hex_would_match(HexType type, int q, int r) {
-    HexNeighbors neighbors;
+    HexNeighbors neighbors = {0};
     get_hex_neighbors(q, r, &neighbors);
+    for (int i = 0; i < neighbors.num_neighbors; i++) {
+        HexCoord c1 = neighbors.coords[i];
+        HexCoord c2 = neighbors.coords[(i + 1) % neighbors.num_neighbors];
+        if (!hex_coord_is_valid(c1) || !hex_coord_is_valid(c2)) {
+            continue;
+        }
+        if ((g_state.hexes[c1.q][c1.r].type == type) && (g_state.hexes[c2.q][c2.r].type == type)) {
+            return true;
+        }
+    }
     return false;
 }
 
@@ -107,17 +151,7 @@ static void spawn_hex(int q, int r, bool allow_match) {
     }
 
     hex->is_valid = true;
-    HexType random_type = rand_in_range(HEX_TYPE_GREEN, HEX_TYPE_RED);
-    if (!allow_match) {
-        // Resample until we find a type that doesn't match neighbors
-        int iteration = 0;
-        while (hex_would_match(random_type, q, r)) {
-            assert(iteration < 100);
-            random_type = rand_in_range(HEX_TYPE_GREEN, HEX_TYPE_RED);
-            iteration++;
-        }
-    }
-    hex->type = random_type;
+    hex->type = rand_in_range(HEX_TYPE_GREEN, HEX_TYPE_RED);
     hex->hex_point = transform_hex_to_screen(q, r);
     hex->scale = 1.0f;
     hex->rotation_angle = 0.0f;
@@ -144,6 +178,19 @@ bool game_init(void) {
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
             spawn_hex(q, r, false);
+        }
+    }
+
+    // Re-roll some hexes to avoid creating matches from the start
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            Hex* hex = &g_state.hexes[q][r];
+            int iteration = 0;
+            while (hex_would_match(hex->type, q, r)) {
+                assert(iteration < 100);
+                hex->type = rand_in_range(HEX_TYPE_GREEN, HEX_TYPE_RED);
+                iteration++;
+            }
         }
     }
 
