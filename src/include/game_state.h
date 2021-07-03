@@ -1,4 +1,5 @@
 #pragma once
+
 #include <stdbool.h>
 #include "input.h"
 #include "game.h"
@@ -9,11 +10,26 @@
 #define CURSOR_NUM_COLUMNS 9
 #define CURSOR_NUM_ROWS 15
 
+#if 0 // 1080p
+#define LOGICAL_WINDOW_WIDTH 1920
+#define LOGICAL_WINDOW_HEIGHT 1080
 // Source png is 60 x 52, scaling up by 1.75
 #define HEX_SOURCE_WIDTH 60
 #define HEX_SOURCE_HEIGHT 52
 #define HEX_WIDTH 105
 #define HEX_HEIGHT 91
+#define CURSOR_RADIUS 12
+#define FONT_SIZE 24
+#else // 720p
+#define LOGICAL_WINDOW_WIDTH 1280
+#define LOGICAL_WINDOW_HEIGHT 720
+#define HEX_SOURCE_WIDTH 60
+#define HEX_SOURCE_HEIGHT 52
+#define HEX_WIDTH 60
+#define HEX_HEIGHT 52
+#define CURSOR_RADIUS 8
+#define FONT_SIZE 20
+#endif
 
 typedef struct {
     float render_ave_ms;
@@ -28,6 +44,9 @@ typedef enum {
     HEX_TYPE_MAGENTA,
     HEX_TYPE_PURPLE,
     HEX_TYPE_RED,
+    HEX_TYPE_STAR_FLOWER,
+    HEX_TYPE_BLACK_PEARL_UP,
+    HEX_TYPE_BLACK_PEARL_DOWN,
     NUM_HEX_TYPES
 } HexType;
 

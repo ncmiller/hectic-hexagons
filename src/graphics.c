@@ -2,8 +2,6 @@
 #include "game_state.h"
 #include <SDL_image.h>
 
-#define FONT_SIZE 24
-
 static SDL_Texture* load_texture(const char* path) {
     SDL_Surface* surface = IMG_Load(path);
     if (surface == NULL) {
@@ -175,6 +173,15 @@ void graphics_update(void) {
     SDL_SetRenderDrawColor(g_state.renderer, 0x44, 0x44, 0x44, 0xFF);
     SDL_RenderClear(g_state.renderer);
 
+    SDL_SetRenderDrawColor(g_state.renderer, 0x11, 0x11, 0x11, 0xFF);
+    SDL_Rect board_rect = {
+        .x = g_state.constants.board.x,
+        .y = g_state.constants.board.y,
+        .w = g_state.constants.board_width,
+        .h = g_state.constants.board_height
+    };
+    SDL_RenderFillRect(g_state.renderer, &board_rect);
+
     // Non-rotating hexes
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
@@ -184,6 +191,8 @@ void graphics_update(void) {
             }
         }
     }
+
+    // TODO - draw cursor halo, rotates with pieces
 
     // Rotating hexes
     // TODO - replace with cursor neighbors instead of looping over all
@@ -198,10 +207,11 @@ void graphics_update(void) {
         }
     }
 
+    // TODO - center point should rotate with hexes
     SDL_Color darkorchid = { .r = 0x99, .g = 0x32, .b = 0xcc, .a = 0xff };
     SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 0xff };
-    draw_circle(g_state.cursor.screen_point, 12, black);
-    draw_circle(g_state.cursor.screen_point, 11, darkorchid);
+    draw_circle(g_state.cursor.screen_point, CURSOR_RADIUS, black);
+    draw_circle(g_state.cursor.screen_point, CURSOR_RADIUS-1, darkorchid);
 
     snprintf(text_buffer(&g_state.level_text), TEXT_MAX_LEN, "Level: %u", g_state.game.level);
     text_draw(&g_state.level_text);

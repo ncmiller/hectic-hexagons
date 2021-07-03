@@ -25,7 +25,7 @@ static void initialize_constants(void) {
     constants->hex_h = h;
     constants->hex_w = w;
 
-    constants->board_width = 0.75f * w * HEX_NUM_COLUMNS;
+    constants->board_width = 5.0f * w + 4.0 * (w / 2.0f) + 0.75f * w;
     constants->board_height = h * HEX_NUM_ROWS;
     constants->board.x = LOGICAL_WINDOW_WIDTH / 2 - constants->board_width / 2;
     constants->board.y = LOGICAL_WINDOW_HEIGHT / 2 - constants->board_height / 2;
@@ -151,7 +151,7 @@ static void spawn_hex(int q, int r, bool allow_match) {
     }
 
     hex->is_valid = true;
-    hex->type = rand_in_range(HEX_TYPE_GREEN, HEX_TYPE_RED);
+    hex->type = rand_in_range(HEX_TYPE_GREEN, NUM_HEX_TYPES-1);
     hex->hex_point = transform_hex_to_screen(q, r);
     hex->scale = 1.0f;
     hex->rotation_angle = 0.0f;
@@ -182,13 +182,14 @@ bool game_init(void) {
     }
 
     // Re-roll some hexes to avoid creating matches from the start
+    // TODO - Prevent starflowers on inital spawn
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
             Hex* hex = &g_state.hexes[q][r];
             int iteration = 0;
             while (hex_would_match(hex->type, q, r)) {
                 assert(iteration < 100);
-                hex->type = rand_in_range(HEX_TYPE_GREEN, HEX_TYPE_RED);
+                hex->type = rand_in_range(HEX_TYPE_GREEN, NUM_HEX_TYPES-1);
                 iteration++;
             }
         }
