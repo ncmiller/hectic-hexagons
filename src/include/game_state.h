@@ -7,8 +7,6 @@
 
 #define HEX_NUM_COLUMNS 10
 #define HEX_NUM_ROWS 9
-#define CURSOR_NUM_COLUMNS 9
-#define CURSOR_NUM_ROWS 15
 
 #if 0 // 1080p
 #define LOGICAL_WINDOW_WIDTH 1920
@@ -50,6 +48,16 @@ typedef enum {
     NUM_HEX_TYPES
 } HexType;
 
+typedef enum {
+    HEX_NEIGHBOR_TOP = 5,
+    HEX_NEIGHBOR_TOP_RIGHT = 4,
+    HEX_NEIGHBOR_BOTTOM_RIGHT = 3,
+    HEX_NEIGHBOR_BOTTOM = 2,
+    HEX_NEIGHBOR_BOTTOM_LEFT = 1,
+    HEX_NEIGHBOR_TOP_LEFT = 0,
+} HexNeighborID;
+#define MAX_NUM_HEX_NEIGHBORS (HEX_NEIGHBOR_TOP + 1)
+
 typedef struct {
     bool is_valid;
     HexType type;
@@ -63,33 +71,28 @@ typedef struct {
 typedef struct {
     // We use the "even-q" indexing scheme described on this page:
     // https://www.redblobgames.com/grids/hexagons
-    uint8_t q;
-    uint8_t r;
+    int q;
+    int r;
 } HexCoord;
 
 typedef struct {
-    // It's 7 because there are up to 6 surrounding hexes and we might count the one
-    // in the middle too if it's neighbors of a starflower.
-    HexCoord coords[7];
+    HexCoord coords[MAX_NUM_HEX_NEIGHBORS];
     size_t num_neighbors;
 } HexNeighbors;
 
-typedef struct {
-    // We use a special coordinate system for the cursor (q is column, r is row).
-    //
-    // Cursor (q,r) == (0,0) is top left between the trio of hex coords (0,0), (1,0), (1,1).
-    // As q increases it zig-zags left and right within the column until it reaches the bottom.
-    // As r increases it jumps to the next hex trio intersection point.
-    //
-    // TODO - how to handle starflowers and black pearls?
-    int q;
-    int r;
-} CursorCoord;
+typedef enum {
+    CURSOR_POS_LEFT,
+    CURSOR_POS_RIGHT,
+    CURSOR_POS_ON,
+} CursorPos;
 
 typedef struct {
+    // Cursor is assocatied with a particular hex coord. The actual location
+    // of the cursor will either be to the left of, on, or to the right of the hex.
+    HexCoord hex_anchor;
+    CursorPos position;
+    Point screen_point;
     bool is_visible;
-    CursorCoord coord;
-    Point screen_point; // TODO - remove, precompute with lookup table
 } Cursor;
 
 typedef struct {

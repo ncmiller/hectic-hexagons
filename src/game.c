@@ -7,6 +7,14 @@
 #define ROTATION_TIME_MS 150
 #define ROTATION_MAX_SCALE 1.5f
 
+// Bitmask to select specific neighbors in the bottom 6 bits.
+// Bit index corresponds to HexNeighborID (e.g. bit 5 is top, bit 4 is top right, etc).
+#define ALL_NEIGHBORS              0x3F
+#define BLACK_PEARL_UP_NEIGHBORS   0x2A
+#define BLACK_PEARL_DOWN_NEIGHBORS 0x15
+#define TRIO_LEFT_NEIGHBORS        0x03
+#define TRIO_RIGHT_NEIGHBORS       0x18
+
 // Convenience accessors to global state
 static Game* game = &g_state.game;
 static Constants* constants = &g_state.constants;
@@ -44,33 +52,6 @@ static Point transform_hex_to_screen(int q, int r) {
     return p;
 }
 
-static Point transform_cursor_to_screen(int q, int r) {
-    assert(q >= 0 && q < CURSOR_NUM_COLUMNS);
-    assert(r >= 0 && r < CURSOR_NUM_ROWS);
-
-    Point p;
-    p.y = constants->hex_h * (1 + r * 0.5f);
-
-    // Calculating x position is a little tricky, so use lookup tables
-    const double even_row_x_scalars[CURSOR_NUM_COLUMNS] = {
-        1.00f, 1.50f, 2.50f, 3.00f, 4.00f, 4.50f, 5.50f, 6.00f, 7.00f
-    };
-    const double odd_row_x_scalars[CURSOR_NUM_COLUMNS] = {
-        0.75f, 1.75f, 2.25f, 3.25f, 3.75f, 4.75f, 5.25f, 6.25f, 6.75f
-    };
-
-    if (r & 1) {
-        p.x = odd_row_x_scalars[q] * constants->hex_w;
-    } else {
-        p.x = even_row_x_scalars[q] * constants->hex_w;
-    }
-
-    p.x += constants->board.x;
-    p.y += constants->board.y;
-
-    return p;
-}
-
 static bool hex_coord_is_valid(HexCoord coord) {
     if (coord.q < 0 || coord.r < 0) {
         return false;
@@ -84,48 +65,59 @@ static bool hex_coord_is_valid(HexCoord coord) {
     return true;
 }
 
+static HexCoord neighbor_coord(int q, int r, HexNeighborID neighbor_id) {
+    bool q_odd = (q & 1);
+    HexCoord coord = {0};
+
+    switch (neighbor_id) {
+        case HEX_NEIGHBOR_TOP:
+            coord.q = q;
+            coord.r = r - 1;
+            break;
+        case HEX_NEIGHBOR_TOP_RIGHT:
+            coord.q = q + 1;
+            coord.r = (q_odd ? r - 1 : r);
+            break;
+        case HEX_NEIGHBOR_BOTTOM_RIGHT:
+            coord.q = q + 1;
+            coord.r = (q_odd ? r : r + 1);
+            break;
+        case HEX_NEIGHBOR_BOTTOM:
+            coord.q = q;
+            coord.r = r + 1;
+            break;
+        case HEX_NEIGHBOR_BOTTOM_LEFT:
+            coord.q = q - 1;
+            coord.r = (q_odd ? r : r + 1);
+            break;
+        case HEX_NEIGHBOR_TOP_LEFT:
+            coord.q = q - 1;
+            coord.r = (q_odd ? r - 1 : r);
+            break;
+        default:
+            SDL_Log("Invalid neighbor ID %d", neighbor_id);
+            assert(false);
+            break;
+    }
+    return coord;
+}
+
 // Returns hex neighbors of hex (q, r) in clockwise order.
+// Neighbor is only added if the corresponding HexNeighborID bit is set in the mask.
 // Note that some of these may be invalid or outside of bounds.
 // Caller should check them with hex_coord_is_valid(q, r).
-static void get_hex_neighbors(int q, int r, HexNeighbors* neighbors) {
-    bool q_odd = (q & 1);
-    HexCoord new_coord = {0};
-
-    // Top
-    new_coord.q = q;
-    new_coord.r = r - 1;
-    neighbors->coords[neighbors->num_neighbors++] = new_coord;
-
-    // Top-right
-    new_coord.q = q + 1;
-    new_coord.r = (q_odd ? r - 1 : r);
-    neighbors->coords[neighbors->num_neighbors++] = new_coord;
-
-    // Bottom-right
-    new_coord.q = q + 1;
-    new_coord.r = (q_odd ? r : r + 1);
-    neighbors->coords[neighbors->num_neighbors++] = new_coord;
-
-    // Bottom
-    new_coord.q = q;
-    new_coord.r = r + 1;
-    neighbors->coords[neighbors->num_neighbors++] = new_coord;
-
-    // Bottom-left
-    new_coord.q = q - 1;
-    new_coord.r = (q_odd ? r : r + 1);
-    neighbors->coords[neighbors->num_neighbors++] = new_coord;
-
-    // Top-left
-    new_coord.q = q - 1;
-    new_coord.r = (q_odd ? r - 1 : r);
-    neighbors->coords[neighbors->num_neighbors++] = new_coord;
+static void get_hex_neighbors(int q, int r, HexNeighbors* neighbors, uint8_t mask) {
+    for (int id = HEX_NEIGHBOR_TOP; id >= 0; id--) {
+        if (mask & (1 << id)) {
+            neighbors->coords[neighbors->num_neighbors++] = neighbor_coord(q, r, id);
+        }
+    }
 }
 
 // Query, to detemine if a hex of specified type at (q,r) would produce a match
 static bool hex_would_match(HexType type, int q, int r) {
     HexNeighbors neighbors = {0};
-    get_hex_neighbors(q, r, &neighbors);
+    get_hex_neighbors(q, r, &neighbors, ALL_NEIGHBORS);
     for (int i = 0; i < neighbors.num_neighbors; i++) {
         HexCoord c1 = neighbors.coords[i];
         HexCoord c2 = neighbors.coords[(i + 1) % neighbors.num_neighbors];
@@ -158,13 +150,22 @@ static void spawn_hex(int q, int r, bool allow_match) {
     hex->alpha = 1.0f;
 }
 
-void set_cursor_position(int q, int r) {
-    if (q < 0 || r < 0 || q >= CURSOR_NUM_COLUMNS || r >= CURSOR_NUM_ROWS) {
-        return;
+static void cursor_update_screen_point(void) {
+    Cursor* cursor = &g_state.cursor;
+
+    SDL_Log("Cursor pos %d, (q,r) = (%d,%d)", cursor->position, cursor->hex_anchor.q, cursor->hex_anchor.r);
+
+    const Hex* hex = &g_state.hexes[cursor->hex_anchor.q][cursor->hex_anchor.r];
+    if (cursor->position == CURSOR_POS_RIGHT) {
+        cursor->screen_point.x = hex->hex_point.x + HEX_WIDTH;
+        cursor->screen_point.y = hex->hex_point.y + HEX_HEIGHT / 2;
+    } else if (cursor->position == CURSOR_POS_LEFT) {
+        cursor->screen_point.x = hex->hex_point.x;
+        cursor->screen_point.y = hex->hex_point.y + HEX_HEIGHT / 2;
+    } else if (cursor->position == CURSOR_POS_ON) {
+        cursor->screen_point.x = hex->hex_point.x + HEX_WIDTH / 2;
+        cursor->screen_point.y = hex->hex_point.y + HEX_HEIGHT / 2;
     }
-    g_state.cursor.coord.q = q;
-    g_state.cursor.coord.r = r;
-    g_state.cursor.screen_point = transform_cursor_to_screen(q, r);
 }
 
 bool game_init(void) {
@@ -195,10 +196,121 @@ bool game_init(void) {
         }
     }
 
-    set_cursor_position(CURSOR_NUM_COLUMNS / 2, CURSOR_NUM_ROWS / 2);
+    HexCoord cursor_start = { .q = HEX_NUM_COLUMNS / 2, .r = HEX_NUM_ROWS / 2 };
+    g_state.cursor.hex_anchor = cursor_start;
+    g_state.cursor.position = CURSOR_POS_LEFT;
+    cursor_update_screen_point();
     g_state.cursor.is_visible = true;
 
     return true;
+}
+
+static void cursor_up(void) {
+    Cursor* cursor = &g_state.cursor;
+    int q = cursor->hex_anchor.q;
+    int r = cursor->hex_anchor.r;
+
+    if (cursor->position == CURSOR_POS_RIGHT) {
+        if (r == 0) {
+            return;
+        }
+        cursor->hex_anchor = neighbor_coord(q, r, HEX_NEIGHBOR_TOP_RIGHT);
+        cursor->position = CURSOR_POS_LEFT;
+    } else if (cursor->position == CURSOR_POS_LEFT) {
+        if (r == 0) {
+            return;
+        }
+        cursor->hex_anchor = neighbor_coord(q, r, HEX_NEIGHBOR_TOP_LEFT);
+        cursor->position = CURSOR_POS_RIGHT;
+    } else if (cursor->position == CURSOR_POS_ON) {
+        cursor->hex_anchor = neighbor_coord(q, r, HEX_NEIGHBOR_TOP_LEFT);
+        cursor->position = CURSOR_POS_RIGHT;
+    }
+
+    cursor_update_screen_point();
+}
+
+static void cursor_down(void) {
+    Cursor* cursor = &g_state.cursor;
+    int q = cursor->hex_anchor.q;
+    int r = cursor->hex_anchor.r;
+
+    if (cursor->position == CURSOR_POS_RIGHT) {
+        if (r == HEX_NUM_ROWS - 2) {
+            return;
+        }
+        cursor->hex_anchor = neighbor_coord(q, r, HEX_NEIGHBOR_BOTTOM_RIGHT);
+        cursor->position = CURSOR_POS_LEFT;
+    } else if (cursor->position == CURSOR_POS_LEFT) {
+        if (r == HEX_NUM_ROWS - 1) {
+            return;
+        }
+        cursor->hex_anchor = neighbor_coord(q, r, HEX_NEIGHBOR_BOTTOM_LEFT);
+        cursor->position = CURSOR_POS_RIGHT;
+    } else if (cursor->position == CURSOR_POS_ON) {
+        cursor->hex_anchor = neighbor_coord(q, r, HEX_NEIGHBOR_BOTTOM_LEFT);
+        cursor->position = CURSOR_POS_RIGHT;
+    }
+
+    cursor_update_screen_point();
+}
+
+static void cursor_right(void) {
+    Cursor* cursor = &g_state.cursor;
+    int q = cursor->hex_anchor.q;
+
+    if (cursor->position == CURSOR_POS_RIGHT) {
+        if (q >= HEX_NUM_COLUMNS - 2) {
+            return;
+        }
+        cursor->hex_anchor.q += 2;
+        cursor->position = CURSOR_POS_LEFT;
+    } else if (cursor->position == CURSOR_POS_LEFT) {
+        if (q >= HEX_NUM_COLUMNS - 1) {
+            return;
+        }
+        HexType type = g_state.hexes[cursor->hex_anchor.q][cursor->hex_anchor.r].type;
+        if ((type == HEX_TYPE_STAR_FLOWER) ||
+            (type == HEX_TYPE_BLACK_PEARL_UP) ||
+            (type == HEX_TYPE_BLACK_PEARL_DOWN)) {
+            cursor->position = CURSOR_POS_ON;
+        } else {
+            cursor->position = CURSOR_POS_RIGHT;
+        }
+    } else if (cursor->position == CURSOR_POS_ON) {
+        cursor->position = CURSOR_POS_RIGHT;
+    }
+
+    cursor_update_screen_point();
+}
+
+static void cursor_left(void) {
+    Cursor* cursor = &g_state.cursor;
+    int q = cursor->hex_anchor.q;
+
+    if (cursor->position == CURSOR_POS_RIGHT) {
+        if (q == 0) {
+            return;
+        }
+        HexType type = g_state.hexes[cursor->hex_anchor.q][cursor->hex_anchor.r].type;
+        if ((type == HEX_TYPE_STAR_FLOWER) ||
+            (type == HEX_TYPE_BLACK_PEARL_UP) ||
+            (type == HEX_TYPE_BLACK_PEARL_DOWN)) {
+            cursor->position = CURSOR_POS_ON;
+        } else {
+            cursor->position = CURSOR_POS_LEFT;
+        }
+    } else if (cursor->position == CURSOR_POS_LEFT) {
+        if (q <= 1) {
+            return;
+        }
+        cursor->hex_anchor.q -= 2;
+        cursor->position = CURSOR_POS_RIGHT;
+    } else if (cursor->position == CURSOR_POS_ON) {
+        cursor->position = CURSOR_POS_LEFT;
+    }
+
+    cursor_update_screen_point();
 }
 
 static void handle_input(void) {
@@ -208,16 +320,16 @@ static void handle_input(void) {
 
     if (input->up) {
         input->up = false;
-        set_cursor_position(g_state.cursor.coord.q, g_state.cursor.coord.r - 1);
+        cursor_up();
     } else if (input->down) {
         input->down = false;
-        set_cursor_position(g_state.cursor.coord.q, g_state.cursor.coord.r + 1);
+        cursor_down();
     } else if (input->right) {
         input->right = false;
-        set_cursor_position(g_state.cursor.coord.q + 1, g_state.cursor.coord.r);
+        cursor_right();
     } else if (input->left) {
         input->left = false;
-        set_cursor_position(g_state.cursor.coord.q - 1, g_state.cursor.coord.r);
+        cursor_left();
     }
 
     bool start_rotation = input->rotate_cw || input->rotate_ccw;
@@ -235,93 +347,48 @@ static void handle_input(void) {
 }
 
 static void get_cursor_neighbors(HexNeighbors* neighbors) {
-    const CursorCoord* cursor = &g_state.cursor.coord;
-    bool r_odd = (cursor->r & 1);
-    bool q_odd = (cursor->q & 1);
+    const Cursor* cursor = &g_state.cursor;
+    const int q = cursor->hex_anchor.q;
+    const int r = cursor->hex_anchor.r;
 
-    // There's probably a smarter way to do this but this works...
-    if (!q_odd && !r_odd) {
-        HexCoord left_hex = {0};
-        left_hex.q = cursor->q;
-        left_hex.r = cursor->r / 2;
-
-        neighbors->coords[neighbors->num_neighbors].q = left_hex.q;
-        neighbors->coords[neighbors->num_neighbors].r = left_hex.r;
-        neighbors->num_neighbors++;
-
-        neighbors->coords[neighbors->num_neighbors].q = left_hex.q + 1;
-        neighbors->coords[neighbors->num_neighbors].r = left_hex.r;
-        neighbors->num_neighbors++;
-
-        neighbors->coords[neighbors->num_neighbors].q = left_hex.q + 1;
-        neighbors->coords[neighbors->num_neighbors].r = left_hex.r + 1;
-        neighbors->num_neighbors++;
-    } else if (!q_odd && r_odd) {
-        HexCoord right_hex = {0};
-        right_hex.q = cursor->q + 1;
-        right_hex.r = cursor->r / 2 + 1;
-
-        neighbors->coords[neighbors->num_neighbors].q = right_hex.q;
-        neighbors->coords[neighbors->num_neighbors].r = right_hex.r;
-        neighbors->num_neighbors++;
-
-        neighbors->coords[neighbors->num_neighbors].q = right_hex.q - 1;
-        neighbors->coords[neighbors->num_neighbors].r = right_hex.r;
-        neighbors->num_neighbors++;
-
-        neighbors->coords[neighbors->num_neighbors].q = right_hex.q - 1;
-        neighbors->coords[neighbors->num_neighbors].r = right_hex.r - 1;
-        neighbors->num_neighbors++;
-    } else if (q_odd && !r_odd) {
-        HexCoord right_hex = {0};
-        right_hex.q = cursor->q + 1;
-        right_hex.r = cursor->r / 2;
-
-        neighbors->coords[neighbors->num_neighbors].q = right_hex.q;
-        neighbors->coords[neighbors->num_neighbors].r = right_hex.r;
-        neighbors->num_neighbors++;
-
-        neighbors->coords[neighbors->num_neighbors].q = right_hex.q - 1;
-        neighbors->coords[neighbors->num_neighbors].r = right_hex.r + 1;
-        neighbors->num_neighbors++;
-
-        neighbors->coords[neighbors->num_neighbors].q = right_hex.q - 1;
-        neighbors->coords[neighbors->num_neighbors].r = right_hex.r;
-        neighbors->num_neighbors++;
-    } else { // q_odd && r_odd
-        HexCoord left_hex = {0};
-        left_hex.q = cursor->q;
-        left_hex.r = cursor->r / 2 + 1;
-
-        neighbors->coords[neighbors->num_neighbors].q = left_hex.q;
-        neighbors->coords[neighbors->num_neighbors].r = left_hex.r;
-        neighbors->num_neighbors++;
-
-        neighbors->coords[neighbors->num_neighbors].q = left_hex.q + 1;
-        neighbors->coords[neighbors->num_neighbors].r = left_hex.r - 1;
-        neighbors->num_neighbors++;
-
-        neighbors->coords[neighbors->num_neighbors].q = left_hex.q + 1;
-        neighbors->coords[neighbors->num_neighbors].r = left_hex.r;
-        neighbors->num_neighbors++;
+    if (cursor->position == CURSOR_POS_ON) {
+        const HexType type = g_state.hexes[q][r].type;
+        if (type == HEX_TYPE_STAR_FLOWER) {
+            get_hex_neighbors(q, r, neighbors, ALL_NEIGHBORS);
+        } else if (type == HEX_TYPE_BLACK_PEARL_UP) {
+            get_hex_neighbors(q, r, neighbors, BLACK_PEARL_UP_NEIGHBORS);
+        } else if (type == HEX_TYPE_BLACK_PEARL_DOWN) {
+            get_hex_neighbors(q, r, neighbors, BLACK_PEARL_DOWN_NEIGHBORS);
+        }
+    } else if (cursor->position == CURSOR_POS_LEFT) {
+        get_hex_neighbors(q, r, neighbors, TRIO_LEFT_NEIGHBORS);
+    } else if (cursor->position == CURSOR_POS_RIGHT) {
+        get_hex_neighbors(q, r, neighbors, TRIO_RIGHT_NEIGHBORS);
+    } else {
+        assert(false && "Unexpected cursor position");
     }
-
-    // TODO - handle starflower and black pearl
 }
 
 static void handle_rotation(void) {
     HexNeighbors neighbors = {0};
     get_cursor_neighbors(&neighbors);
 
-    Hex* hex0 = &g_state.hexes[neighbors.coords[0].q][neighbors.coords[0].r];
-    Hex* hex1 = &g_state.hexes[neighbors.coords[1].q][neighbors.coords[1].r];
-    Hex* hex2 = &g_state.hexes[neighbors.coords[2].q][neighbors.coords[2].r];
+    SDL_Log("Neighbors of (%d, %d):", g_state.cursor.hex_anchor.q, g_state.cursor.hex_anchor.r);
+    for (int i = 0; i < neighbors.num_neighbors; i++) {
+        SDL_Log("   (%d, %d):", neighbors.coords[i].q, neighbors.coords[i].r);
+    }
+
+    // TODO - handle more than 3 neighbors
+    Hex* hex0 = &g_state.hexes[g_state.cursor.hex_anchor.q][g_state.cursor.hex_anchor.r];
+    Hex* hex1 = &g_state.hexes[neighbors.coords[0].q][neighbors.coords[0].r];
+    Hex* hex2 = &g_state.hexes[neighbors.coords[1].q][neighbors.coords[1].r];
 
     double rotation_progress =
         (double)(SDL_GetTicks() - game->rotation_start_time) / (double)ROTATION_TIME_MS;
     if (rotation_progress > 1.0f) {
         g_state.game.rotation_in_progress = false;
 
+        // TODO - replace with rotate_hexes()
         hex0->is_rotating = false;
         hex1->is_rotating = false;
         hex2->is_rotating = false;
