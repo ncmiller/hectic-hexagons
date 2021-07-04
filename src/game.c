@@ -8,12 +8,12 @@
 #define ROTATION_MAX_SCALE 1.5f
 
 // Bitmask to select specific neighbors in the bottom 6 bits.
-// Bit index corresponds to HexNeighborID (e.g. bit 5 is top, bit 4 is top right, etc).
+// Bit index corresponds to HexNeighborID (e.g. bit 0 is top, bit 1 is top right, etc).
 #define ALL_NEIGHBORS              0x3F
-#define BLACK_PEARL_UP_NEIGHBORS   0x2A
-#define BLACK_PEARL_DOWN_NEIGHBORS 0x15
-#define TRIO_LEFT_NEIGHBORS        0x03
-#define TRIO_RIGHT_NEIGHBORS       0x18
+#define BLACK_PEARL_UP_NEIGHBORS   0x15
+#define BLACK_PEARL_DOWN_NEIGHBORS 0x2A
+#define TRIO_LEFT_NEIGHBORS        0x30
+#define TRIO_RIGHT_NEIGHBORS       0x06
 
 // Convenience accessors to global state
 static Game* game = &g_state.game;
@@ -107,7 +107,7 @@ static HexCoord neighbor_coord(int q, int r, HexNeighborID neighbor_id) {
 // Note that some of these may be invalid or outside of bounds.
 // Caller should check them with hex_coord_is_valid(q, r).
 static void get_hex_neighbors(int q, int r, HexNeighbors* neighbors, uint8_t mask) {
-    for (int id = HEX_NEIGHBOR_TOP; id >= 0; id--) {
+    for (int id = 0; id < MAX_NUM_HEX_NEIGHBORS; id++) {
         if (mask & (1 << id)) {
             neighbors->coords[neighbors->num_neighbors++] = neighbor_coord(q, r, id);
         }
@@ -153,7 +153,7 @@ static void spawn_hex(int q, int r, bool allow_match) {
 static void cursor_update_screen_point(void) {
     Cursor* cursor = &g_state.cursor;
 
-    SDL_Log("Cursor pos %d, (q,r) = (%d,%d)", cursor->position, cursor->hex_anchor.q, cursor->hex_anchor.r);
+    // SDL_Log("Cursor pos %d, (q,r) = (%d,%d)", cursor->position, cursor->hex_anchor.q, cursor->hex_anchor.r);
 
     const Hex* hex = &g_state.hexes[cursor->hex_anchor.q][cursor->hex_anchor.r];
     if (cursor->position == CURSOR_POS_RIGHT) {
@@ -270,7 +270,7 @@ static void cursor_right(void) {
             return;
         }
         HexType type = g_state.hexes[cursor->hex_anchor.q][cursor->hex_anchor.r].type;
-        if ((type == HEX_TYPE_STAR_FLOWER) ||
+        if ((type == HEX_TYPE_STARFLOWER) ||
             (type == HEX_TYPE_BLACK_PEARL_UP) ||
             (type == HEX_TYPE_BLACK_PEARL_DOWN)) {
             cursor->position = CURSOR_POS_ON;
@@ -293,7 +293,7 @@ static void cursor_left(void) {
             return;
         }
         HexType type = g_state.hexes[cursor->hex_anchor.q][cursor->hex_anchor.r].type;
-        if ((type == HEX_TYPE_STAR_FLOWER) ||
+        if ((type == HEX_TYPE_STARFLOWER) ||
             (type == HEX_TYPE_BLACK_PEARL_UP) ||
             (type == HEX_TYPE_BLACK_PEARL_DOWN)) {
             cursor->position = CURSOR_POS_ON;
@@ -333,14 +333,21 @@ static void handle_input(void) {
     }
 
     bool start_rotation = input->rotate_cw || input->rotate_ccw;
+
     if (start_rotation && !game->rotation_in_progress) {
         game->rotation_in_progress = true;
+
+        const Cursor* cursor = &g_state.cursor;
+        HexType cursor_hex_type = g_state.hexes[cursor->hex_anchor.q][cursor->hex_anchor.r].type;
+        bool is_starflower_rotation =
+            (cursor->position == CURSOR_POS_ON) && (cursor_hex_type == HEX_TYPE_STARFLOWER);
+
         if (input->rotate_cw) {
             input->rotate_cw = false;
-            game->degrees_to_rotate = 120.0f;
+            game->degrees_to_rotate = (is_starflower_rotation ? 60.0f : 120.0f);
         } else if (g_state.input.rotate_ccw) {
             input->rotate_ccw = false;
-            game->degrees_to_rotate = -120.0f;
+            game->degrees_to_rotate = (is_starflower_rotation ? -60.0f : -120.0f);
         }
         game->rotation_start_time = SDL_GetTicks();
     }
@@ -353,7 +360,7 @@ static void get_cursor_neighbors(HexNeighbors* neighbors) {
 
     if (cursor->position == CURSOR_POS_ON) {
         const HexType type = g_state.hexes[q][r].type;
-        if (type == HEX_TYPE_STAR_FLOWER) {
+        if (type == HEX_TYPE_STARFLOWER) {
             get_hex_neighbors(q, r, neighbors, ALL_NEIGHBORS);
         } else if (type == HEX_TYPE_BLACK_PEARL_UP) {
             get_hex_neighbors(q, r, neighbors, BLACK_PEARL_UP_NEIGHBORS);
@@ -369,22 +376,100 @@ static void get_cursor_neighbors(HexNeighbors* neighbors) {
     }
 }
 
+static void rotate_hexes(const HexCoord* coords, size_t num_coords, bool clockwise) {
+    // SDL_Log("Rotate hexes %s", clockwise ? "clockwise" : "counter-clockwise");
+    // for (int i = 0; i < num_coords; i++) {
+    //     SDL_Log("   (%d, %d)", coords[i].q, coords[i].r);
+    // }
+
+    if (clockwise) {
+        // Take the one at the end and put it at the beginning
+        HexType end_hex_type = g_state.hexes[coords[num_coords - 1].q][coords[num_coords - 1].r].type;
+        for (int i = num_coords - 2; i >= 0; i--) {
+            const Hex* src = &g_state.hexes[coords[i].q][coords[i].r];
+            Hex* dest = &g_state.hexes[coords[i+1].q][coords[i+1].r];
+            dest->type = src->type;
+        }
+        g_state.hexes[coords[0].q][coords[0].r].type = end_hex_type;
+    } else {
+        // Take the one at the beginning and put it at the end
+        HexType beginning_hex_type = g_state.hexes[coords[0].q][coords[0].r].type;
+        for (int i = 0; i < num_coords - 1; i++) {
+            const Hex* src = &g_state.hexes[coords[i+1].q][coords[i+1].r];
+            Hex* dest = &g_state.hexes[coords[i].q][coords[i].r];
+            dest->type = src->type;
+        }
+        g_state.hexes[coords[num_coords - 1].q][coords[num_coords - 1].r].type = beginning_hex_type;
+    }
+}
+
 static void handle_rotation(void) {
     HexNeighbors neighbors = {0};
     get_cursor_neighbors(&neighbors);
 
-    SDL_Log("Neighbors of (%d, %d):", g_state.cursor.hex_anchor.q, g_state.cursor.hex_anchor.r);
-    for (int i = 0; i < neighbors.num_neighbors; i++) {
-        SDL_Log("   (%d, %d):", neighbors.coords[i].q, neighbors.coords[i].r);
+    // SDL_Log("Neighbors of (%d, %d):", g_state.cursor.hex_anchor.q, g_state.cursor.hex_anchor.r);
+    // for (int i = 0; i < neighbors.num_neighbors; i++) {
+    //     SDL_Log("   (%d, %d):", neighbors.coords[i].q, neighbors.coords[i].r);
+    // }
+
+    Cursor* cursor = &g_state.cursor;
+    Hex* cursor_hex = &g_state.hexes[cursor->hex_anchor.q][cursor->hex_anchor.r];
+
+    const double rotation_progress =
+        (double)(SDL_GetTicks() - game->rotation_start_time) / (double)ROTATION_TIME_MS;
+
+    if (rotation_progress > 1.0f) {
+        g_state.game.rotation_in_progress = false;
+
+        cursor_hex->is_rotating = false;
+        cursor_hex->rotation_angle = 0.0f;
+        cursor_hex->scale = 1.0f;
+
+        for (int i = 0; i < neighbors.num_neighbors; i++) {
+            Hex* hex = &g_state.hexes[neighbors.coords[i].q][neighbors.coords[i].r];
+            hex->is_rotating = false;
+            hex->rotation_angle = 0.0f;
+            hex->scale = 1.0f;
+        }
+
+        bool is_rotate_clockwise = (g_state.game.degrees_to_rotate > 0);
+        if (cursor->position == CURSOR_POS_ON) { // starflower or black pearl rotation
+            rotate_hexes(neighbors.coords, neighbors.num_neighbors, is_rotate_clockwise);
+        } else { // normal trio rotation
+            HexCoord hexes_to_rotate[3];
+            hexes_to_rotate[0] = cursor->hex_anchor;
+            hexes_to_rotate[1] = neighbors.coords[0];
+            hexes_to_rotate[2] = neighbors.coords[1];
+            rotate_hexes(hexes_to_rotate, 3, is_rotate_clockwise);
+        }
+    } else {
+        const double angle = rotation_progress * g_state.game.degrees_to_rotate;
+        double scale = 1.0f;
+        if (rotation_progress < 0.5f) {
+            double s0 = 1.0f;
+            double s1 = ROTATION_MAX_SCALE;
+            double t = (rotation_progress / 0.5f);
+            scale = (1.0f - t) * s0 + t * s1;
+        } else {
+            double s0 = ROTATION_MAX_SCALE;
+            double s1 = 1.0f;
+            double t = ((rotation_progress - 0.5f) / 0.5f);
+            scale = (1.0f - t) * s0 + t * s1;
+        }
+
+        cursor_hex->is_rotating = true;
+        cursor_hex->rotation_angle = angle;
+        cursor_hex->scale = scale;
+
+        for (int i = 0; i < neighbors.num_neighbors; i++) {
+            Hex* hex = &g_state.hexes[neighbors.coords[i].q][neighbors.coords[i].r];
+            hex->is_rotating = true;
+            hex->rotation_angle = angle;
+            hex->scale = scale;
+        }
     }
 
-    // TODO - handle more than 3 neighbors
-    Hex* hex0 = &g_state.hexes[g_state.cursor.hex_anchor.q][g_state.cursor.hex_anchor.r];
-    Hex* hex1 = &g_state.hexes[neighbors.coords[0].q][neighbors.coords[0].r];
-    Hex* hex2 = &g_state.hexes[neighbors.coords[1].q][neighbors.coords[1].r];
-
-    double rotation_progress =
-        (double)(SDL_GetTicks() - game->rotation_start_time) / (double)ROTATION_TIME_MS;
+#if 0
     if (rotation_progress > 1.0f) {
         g_state.game.rotation_in_progress = false;
 
@@ -439,6 +524,7 @@ static void handle_rotation(void) {
         hex1->scale = scale;
         hex2->scale = scale;
     }
+#endif
 }
 
 void game_update(void) {
