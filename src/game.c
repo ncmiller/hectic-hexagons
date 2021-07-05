@@ -15,14 +15,37 @@
 #define TRIO_LEFT_NEIGHBORS        0x30
 #define TRIO_RIGHT_NEIGHBORS       0x06
 
+// Bitmasks to select specific hex types to spawn, based on level.
+// Bit index corresponds to HexType (e.g. bit 0 is green, bit 1 is blue, etc).
+#define MAX_NUM_LEVELS 7
+static const uint32_t LEVEL_HEX_TYPE_MASK[MAX_NUM_LEVELS + 1] = {
+    [0] = 0x00, // invalid, not a level
+    [1] = 0x37, // level 1, no magenta
+    [2] = 0x37, // level 2, add multipliers
+    [3] = 0x37, // level 3, add bombs
+    [4] = 0x3F, // level 4, add magenta
+    [5] = 0x3F, // level 5, no change
+    [6] = 0x3F, // level 6, no change
+    [7] = 0x3F, // level 7, no change
+};
+
 // Convenience accessors to global state
 static Game* game = &g_state.game;
 static Constants* constants = &g_state.constants;
 static Input* input = &g_state.input;
 
-// Includes min and max
-static int rand_in_range(int min, int max) {
-    return min + (rand() % (max - min + 1));
+static HexType random_hex_type() {
+    // TODO - support for different odds of rolling multipliers and bombs
+    HexType allowed_types[NUM_HEX_TYPES] = {0};
+    size_t num_allowed_types = 0;
+    for (int bit = 0; bit < NUM_HEX_TYPES; bit++) {
+        uint32_t mask = LEVEL_HEX_TYPE_MASK[g_state.game.level];
+        if ((1 << bit) & mask) {
+            allowed_types[num_allowed_types++] = bit;
+        }
+    }
+    int rand_allowed_type_index = rand() % num_allowed_types;
+    return allowed_types[rand_allowed_type_index];
 }
 
 static void initialize_constants(void) {
@@ -171,7 +194,7 @@ static void spawn_hex(int q, int r) {
     }
 
     hex->is_valid = true;
-    hex->type = rand_in_range(HEX_TYPE_GREEN, HEX_TYPE_RED);
+    hex->type = random_hex_type();
     hex->hex_point = transform_hex_to_screen(q, r);
     hex->scale = 1.0f;
     hex->rotation_angle = 0.0f;
@@ -248,7 +271,7 @@ bool game_init(void) {
         for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
             for (int r = 0; r < HEX_NUM_ROWS; r++) {
                 if (hex_trio_match(q, r)) {
-                    g_state.hexes[q][r].type = rand_in_range(HEX_TYPE_GREEN, HEX_TYPE_RED);
+                    g_state.hexes[q][r].type = random_hex_type();
                 }
             }
         }
@@ -257,7 +280,7 @@ bool game_init(void) {
         for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
             for (int r = 0; r < HEX_NUM_ROWS; r++) {
                 if (hex_starflower_match(q, r)) {
-                    g_state.hexes[q][r-1].type = rand_in_range(HEX_TYPE_GREEN, HEX_TYPE_RED);
+                    g_state.hexes[q][r-1].type = random_hex_type();
                 }
             }
         }
@@ -381,6 +404,7 @@ static void cursor_left(void) {
 }
 
 static void handle_input(void) {
+    // Wait for rotation to finish before processing any more inputs
     if (game->rotation_in_progress) {
         return;
     }

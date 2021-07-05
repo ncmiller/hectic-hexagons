@@ -42,6 +42,8 @@ typedef enum {
     HEX_TYPE_MAGENTA,
     HEX_TYPE_PURPLE,
     HEX_TYPE_RED,
+    // TODO multipliers
+    // TODO bombs
     HEX_TYPE_STARFLOWER,
     HEX_TYPE_BLACK_PEARL_UP,
     HEX_TYPE_BLACK_PEARL_DOWN,
