@@ -114,8 +114,9 @@ static void get_hex_neighbors(int q, int r, HexNeighbors* neighbors, uint8_t mas
     }
 }
 
-// Query, to detemine if a hex of specified type at (q,r) would produce a match
-static bool hex_would_match(HexType type, int q, int r) {
+// Query, to detemine if the hex at (q,r) would produce a trio match
+static bool hex_trio_match(int q, int r) {
+    const Hex* query_hex = &g_state.hexes[q][r];
     HexNeighbors neighbors = {0};
     get_hex_neighbors(q, r, &neighbors, ALL_NEIGHBORS);
     for (int i = 0; i < neighbors.num_neighbors; i++) {
@@ -124,14 +125,41 @@ static bool hex_would_match(HexType type, int q, int r) {
         if (!hex_coord_is_valid(c1) || !hex_coord_is_valid(c2)) {
             continue;
         }
-        if ((g_state.hexes[c1.q][c1.r].type == type) && (g_state.hexes[c2.q][c2.r].type == type)) {
+        const Hex* hex1 = &g_state.hexes[c1.q][c1.r];
+        const Hex* hex2 = &g_state.hexes[c2.q][c2.r];
+        if ((hex1->type == query_hex->type) && (hex2->type == query_hex->type)) {
             return true;
         }
     }
     return false;
 }
 
-static void spawn_hex(int q, int r, bool allow_match) {
+// Query, to determine if the hex at (q,r) would produce a starflower match (all neighbors same)
+static bool hex_starflower_match(int q, int r) {
+    HexNeighbors neighbors = {0};
+    get_hex_neighbors(q, r, &neighbors, ALL_NEIGHBORS);
+
+    // Check that all neighbors are valid
+    for (int i = 0; i < neighbors.num_neighbors; i++) {
+        HexCoord c = neighbors.coords[i];
+        if (!hex_coord_is_valid(c)) {
+            return false;
+        }
+    }
+
+    // Check that all neighbors have the same type
+    HexType type = g_state.hexes[neighbors.coords[0].q][neighbors.coords[0].r].type;
+    for (int i = 1; i < neighbors.num_neighbors; i++) {
+        HexCoord neighbor_coord = neighbors.coords[i];
+        HexType neighbor_type = g_state.hexes[neighbor_coord.q][neighbor_coord.r].type;
+        if (neighbor_type != type) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void spawn_hex(int q, int r) {
     assert(q < HEX_NUM_COLUMNS && r < HEX_NUM_ROWS);
     Hex* hex = &g_state.hexes[q][r];
 
@@ -143,7 +171,7 @@ static void spawn_hex(int q, int r, bool allow_match) {
     }
 
     hex->is_valid = true;
-    hex->type = rand_in_range(HEX_TYPE_GREEN, NUM_HEX_TYPES-1);
+    hex->type = rand_in_range(HEX_TYPE_GREEN, HEX_TYPE_RED);
     hex->hex_point = transform_hex_to_screen(q, r);
     hex->scale = 1.0f;
     hex->rotation_angle = 0.0f;
@@ -152,8 +180,6 @@ static void spawn_hex(int q, int r, bool allow_match) {
 
 static void cursor_update_screen_point(void) {
     Cursor* cursor = &g_state.cursor;
-
-    // SDL_Log("Cursor pos %d, (q,r) = (%d,%d)", cursor->position, cursor->hex_anchor.q, cursor->hex_anchor.r);
 
     const Hex* hex = &g_state.hexes[cursor->hex_anchor.q][cursor->hex_anchor.r];
     if (cursor->position == CURSOR_POS_RIGHT) {
@@ -168,6 +194,40 @@ static void cursor_update_screen_point(void) {
     }
 }
 
+static void spawn_all_hexes(void) {
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            spawn_hex(q, r);
+        }
+    }
+}
+
+static bool board_has_any_trio_matches(void) {
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            if (hex_trio_match(q, r)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static bool board_has_any_starflower_matches(void) {
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            if (hex_starflower_match(q, r)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+static bool board_has_any_matches(void) {
+    return board_has_any_trio_matches() || board_has_any_starflower_matches();
+}
+
 bool game_init(void) {
     initialize_constants();
 
@@ -176,22 +236,29 @@ bool game_init(void) {
     g_state.game.level = 1;
     g_state.game.combos_remaining = 50;
     g_state.game.score = 0;
-    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
-        for (int r = 0; r < HEX_NUM_ROWS; r++) {
-            spawn_hex(q, r, false);
-        }
-    }
 
-    // Re-roll some hexes to avoid creating matches from the start
-    // TODO - Prevent starflowers on inital spawn
-    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
-        for (int r = 0; r < HEX_NUM_ROWS; r++) {
-            Hex* hex = &g_state.hexes[q][r];
-            int iteration = 0;
-            while (hex_would_match(hex->type, q, r)) {
-                assert(iteration < 100);
-                hex->type = rand_in_range(HEX_TYPE_GREEN, NUM_HEX_TYPES-1);
-                iteration++;
+    spawn_all_hexes();
+
+    int reroll_attempts = 0;
+    while (board_has_any_matches()) {
+        reroll_attempts++;
+        assert(reroll_attempts < 100);
+
+        // Fix trio matches by rerolling (q,r)
+        for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+            for (int r = 0; r < HEX_NUM_ROWS; r++) {
+                if (hex_trio_match(q, r)) {
+                    g_state.hexes[q][r].type = rand_in_range(HEX_TYPE_GREEN, HEX_TYPE_RED);
+                }
+            }
+        }
+
+        // Fix starflower matches by rerolling top neighbor
+        for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+            for (int r = 0; r < HEX_NUM_ROWS; r++) {
+                if (hex_starflower_match(q, r)) {
+                    g_state.hexes[q][r-1].type = rand_in_range(HEX_TYPE_GREEN, HEX_TYPE_RED);
+                }
             }
         }
     }
@@ -333,10 +400,11 @@ static void handle_input(void) {
     }
 
     bool start_rotation = input->rotate_cw || input->rotate_ccw;
-
     if (start_rotation && !game->rotation_in_progress) {
         game->rotation_in_progress = true;
+        game->rotation_start_time = SDL_GetTicks();
 
+        // Determine if this is a starflower rotation
         const Cursor* cursor = &g_state.cursor;
         HexType cursor_hex_type = g_state.hexes[cursor->hex_anchor.q][cursor->hex_anchor.r].type;
         bool is_starflower_rotation =
@@ -349,7 +417,6 @@ static void handle_input(void) {
             input->rotate_ccw = false;
             game->degrees_to_rotate = (is_starflower_rotation ? -60.0f : -120.0f);
         }
-        game->rotation_start_time = SDL_GetTicks();
     }
 }
 
@@ -376,12 +443,8 @@ static void get_cursor_neighbors(HexNeighbors* neighbors) {
     }
 }
 
+// Only modifies the hex type during rotation
 static void rotate_hexes(const HexCoord* coords, size_t num_coords, bool clockwise) {
-    // SDL_Log("Rotate hexes %s", clockwise ? "clockwise" : "counter-clockwise");
-    // for (int i = 0; i < num_coords; i++) {
-    //     SDL_Log("   (%d, %d)", coords[i].q, coords[i].r);
-    // }
-
     if (clockwise) {
         // Take the one at the end and put it at the beginning
         HexType end_hex_type = g_state.hexes[coords[num_coords - 1].q][coords[num_coords - 1].r].type;
@@ -407,11 +470,6 @@ static void handle_rotation(void) {
     HexNeighbors neighbors = {0};
     get_cursor_neighbors(&neighbors);
 
-    // SDL_Log("Neighbors of (%d, %d):", g_state.cursor.hex_anchor.q, g_state.cursor.hex_anchor.r);
-    // for (int i = 0; i < neighbors.num_neighbors; i++) {
-    //     SDL_Log("   (%d, %d):", neighbors.coords[i].q, neighbors.coords[i].r);
-    // }
-
     Cursor* cursor = &g_state.cursor;
     Hex* cursor_hex = &g_state.hexes[cursor->hex_anchor.q][cursor->hex_anchor.r];
 
@@ -433,9 +491,11 @@ static void handle_rotation(void) {
         }
 
         bool is_rotate_clockwise = (g_state.game.degrees_to_rotate > 0);
-        if (cursor->position == CURSOR_POS_ON) { // starflower or black pearl rotation
+        if (cursor->position == CURSOR_POS_ON) {
+            // starflower or black pearl rotation, rotate all neighbors
             rotate_hexes(neighbors.coords, neighbors.num_neighbors, is_rotate_clockwise);
-        } else { // normal trio rotation
+        } else {
+            // normal trio rotation, rotate the cursor and two neighbors
             HexCoord hexes_to_rotate[3];
             hexes_to_rotate[0] = cursor->hex_anchor;
             hexes_to_rotate[1] = neighbors.coords[0];
@@ -468,63 +528,6 @@ static void handle_rotation(void) {
             hex->scale = scale;
         }
     }
-
-#if 0
-    if (rotation_progress > 1.0f) {
-        g_state.game.rotation_in_progress = false;
-
-        // TODO - replace with rotate_hexes()
-        hex0->is_rotating = false;
-        hex1->is_rotating = false;
-        hex2->is_rotating = false;
-
-        hex0->rotation_angle = 0.0f;
-        hex1->rotation_angle = 0.0f;
-        hex2->rotation_angle = 0.0f;
-
-        hex0->scale = 1.0f;
-        hex1->scale = 1.0f;
-        hex2->scale = 1.0f;
-
-        HexType temp1 = hex1->type;
-        HexType temp2 = hex2->type;
-        if (g_state.game.degrees_to_rotate > 0) {
-            hex1->type = hex0->type;
-            hex2->type = temp1;
-            hex0->type = temp2;
-        } else {
-            hex1->type = temp2;
-            hex2->type = hex0->type;
-            hex0->type = temp1;
-        }
-    } else {
-        hex0->is_rotating = true;
-        hex1->is_rotating = true;
-        hex2->is_rotating = true;
-
-        double angle = rotation_progress * g_state.game.degrees_to_rotate;
-        hex0->rotation_angle = angle;
-        hex1->rotation_angle = angle;
-        hex2->rotation_angle = angle;
-
-        double scale = 1.0f;
-        if (rotation_progress < 0.5f) {
-            double s0 = 1.0f;
-            double s1 = ROTATION_MAX_SCALE;
-            double t = (rotation_progress / 0.5f);
-            scale = (1.0f - t) * s0 + t * s1;
-        } else {
-            double s0 = ROTATION_MAX_SCALE;
-            double s1 = 1.0f;
-            double t = ((rotation_progress - 0.5f) / 0.5f);
-            scale = (1.0f - t) * s0 + t * s1;
-        }
-
-        hex0->scale = scale;
-        hex1->scale = scale;
-        hex2->scale = scale;
-    }
-#endif
 }
 
 void game_update(void) {
