@@ -22,6 +22,8 @@ set(source_files
     src/input.c
     src/game.c
     src/text.c
+    src/vector.c
+    src/bump_allocator.c
 )
 
 

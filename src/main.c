@@ -3,6 +3,8 @@
 #include <stdbool.h>
 
 #include "game_state.h"
+#include "bump_allocator.h"
+#include "vector.h"
 
 // All game state data is stored in here
 GameState g_state = {0};
@@ -70,6 +72,9 @@ static void sdl_create_window(void) {
 }
 
 int main(int argc, char* argv[]) {
+    bump_allocator_init(g_state.temporary_allocations, sizeof(g_state.temporary_allocations));
+    vector_set_allocator(bump_allocator_alloc, bump_allocator_free);
+
     sdl_init();
     sdl_create_window();
 
@@ -84,6 +89,8 @@ int main(int argc, char* argv[]) {
 
     g_state.running = true;
     while (g_state.running) {
+        bump_allocator_free_all();
+
         uint32_t start = SDL_GetTicks();
         input_update();
         game_update();
