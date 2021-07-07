@@ -9,8 +9,6 @@
 #define HEX_NUM_ROWS 9
 
 #if 0 // 1080p
-#define LOGICAL_WINDOW_WIDTH 1920
-#define LOGICAL_WINDOW_HEIGHT 1080
 // Source png is 60 x 52, scaling up by 1.75
 #define HEX_SOURCE_WIDTH 60
 #define HEX_SOURCE_HEIGHT 52
@@ -19,8 +17,6 @@
 #define CURSOR_RADIUS 12
 #define FONT_SIZE 24
 #else // 720p
-#define LOGICAL_WINDOW_WIDTH 1280
-#define LOGICAL_WINDOW_HEIGHT 720
 #define HEX_SOURCE_WIDTH 60
 #define HEX_SOURCE_HEIGHT 52
 #define HEX_WIDTH 60
@@ -89,8 +85,9 @@ typedef enum {
 } CursorPos;
 
 typedef struct {
-    // Cursor is assocatied with a particular hex coord. The actual location
-    // of the cursor will either be to the left of, on, or to the right of the hex.
+    // Cursor is assocatied with a particular hex coordinate.
+    // The actual location of the cursor will either be to the
+    // left of, on, or to the right of the hex.
     HexCoord hex_anchor;
     CursorPos position;
     Point screen_point;
@@ -110,31 +107,17 @@ typedef struct {
 } Constants;
 
 typedef struct {
-    SDL_Window* window;
-    SDL_Renderer* renderer;
     bool running;
 
     Statistics statistics;
     Constants constants;
     Input input;
     Game game;
-    Graphics graphics;
-
-    Text level_text;
-    Text combos_text;
-    Text score_text;
-    Text fps_text;
+    Cursor cursor;
 
     // On the last row, only the odd column hexes are valid. This is consistent
     // with the original Hexic HD board.
     Hex hexes[HEX_NUM_COLUMNS][HEX_NUM_ROWS];
-    Cursor cursor;
 } GameState;
 
-// Yes, I know global variables are bad.
-// But it's kind of a pain to pass game state around everywhere.
-//
-// This is a small game created by one developer, so the risk is manageable and limited
-// to this single global variable. Hiding data with encapsulation would probably just get in
-// the way.
 extern GameState g_state;

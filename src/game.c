@@ -1,6 +1,7 @@
 #include "game_state.h"
 #include "math.h"
-#include <time.h>
+#include "window.h"
+#include "time_now.h"
 #include <stdlib.h>
 #include <assert.h>
 
@@ -257,7 +258,7 @@ static bool board_has_any_matches(void) {
 bool game_init(void) {
     initialize_constants();
 
-    srand(time(0));
+    srand(now_ns());
 
     g_state.game.level = 1;
     g_state.game.combos_remaining = 50;
@@ -429,7 +430,7 @@ static void handle_input(void) {
     bool start_rotation = input->rotate_cw || input->rotate_ccw;
     if (start_rotation && !game->rotation_in_progress) {
         game->rotation_in_progress = true;
-        game->rotation_start_time = SDL_GetTicks();
+        game->rotation_start_time = now_ms();
 
         // Determine if this is a starflower rotation
         const Cursor* cursor = &g_state.cursor;
@@ -501,7 +502,7 @@ static void handle_rotation(void) {
     Hex* cursor_hex = &g_state.hexes[cursor->hex_anchor.q][cursor->hex_anchor.r];
 
     const double rotation_progress =
-        (double)(SDL_GetTicks() - game->rotation_start_time) / (double)ROTATION_TIME_MS;
+        (double)(now_ms() - game->rotation_start_time) / (double)ROTATION_TIME_MS;
 
     if (rotation_progress > 1.0f) {
         g_state.game.rotation_in_progress = false;

@@ -10,7 +10,7 @@ typedef struct {
     // Rotation
     bool rotation_in_progress;
     double degrees_to_rotate;
-    int rotation_start_time;
+    uint64_t rotation_start_time;
 } Game;
 
 bool game_init(void);

@@ -1,5 +1,6 @@
 #include "text.h"
 #include "game_state.h"
+#include "window.h"
 #include <stdlib.h>
 
 void text_init(Text* text) {
@@ -41,7 +42,7 @@ static void render_texture(Text* text) {
     if (text->texture) {
         SDL_DestroyTexture(text->texture);
     }
-    text->texture = SDL_CreateTextureFromSurface(g_state.renderer, surface);
+    text->texture = SDL_CreateTextureFromSurface(window_renderer(), surface);
     if (!text->texture) {
         SDL_Log("SDL_CreateTextureFromSurface for %s failed, error: %s", text->buffer, SDL_GetError());
     }
@@ -65,6 +66,6 @@ void text_draw(Text* text) {
             .w = text->width,
             .h = text->height,
         };
-        SDL_RenderCopy(g_state.renderer, text->texture, NULL, &dest);
+        SDL_RenderCopy(window_renderer(), text->texture, NULL, &dest);
     }
 }
