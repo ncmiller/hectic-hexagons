@@ -136,4 +136,10 @@ typedef struct {
     Cursor cursor;
 } GameState;
 
+// Yes, I know global variables are bad.
+// But it's kind of a pain to pass game state around everywhere.
+//
+// This is a small game created by one developer, so the risk is manageable and limited
+// to this single global variable. Hiding data with encapsulation would probably just get in
+// the way.
 extern GameState g_state;

@@ -36,6 +36,9 @@ static Input* input = &g_state.input;
 
 static HexType random_hex_type() {
     // TODO - support for different odds of rolling multipliers and bombs
+    //
+    // For Hexic HD, people online report roughly 3% drop rate for multipliers.
+    // Not sure about bombs.
     HexType allowed_types[NUM_HEX_TYPES] = {0};
     size_t num_allowed_types = 0;
     for (int bit = 0; bit < NUM_HEX_TYPES; bit++) {
@@ -554,6 +557,24 @@ static void handle_rotation(void) {
     }
 }
 
+// The general plan for each game update is:
+//
+//  1. Get user input, possibly starting a rotation.
+//  2. Update rotation and falling animations. If any rotation of fall is completed:
+//      2a. Check for combos and score them.
+//      2b. Remove combo'd hexes and respawn them above the board.
+//      2c. Start falling animation for each hex above the combo'd hexes.
+//
+// Checking for combos is done in this order:
+//  * Flowers
+//  * Simple clusters (3, 4, or 5 of the same hex type, or multipliers clusters of any color)
+//  * Bomb diffusals (if combined with a multiplier, this will eliminate all of that color)
+//  * MMC clusters (whatever clusters remain, containing a mix of basic colors and multiplers)
+//
+// To find flowers, we simply iterate over the entire board, checking to see if each hex is the
+// center of a starflower. It's dumb, but simple.
+//
+// To find clusters, we use iterative depth-first search.
 void game_update(void) {
     handle_input();
 
