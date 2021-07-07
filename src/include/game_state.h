@@ -110,11 +110,6 @@ typedef struct {
 } Constants;
 
 typedef struct {
-    // Backing buffer for temporary dynamic allocations during a single
-    // iteration of the game loop.
-    // Everything is freed at the beginning of each game loop iteration.
-    uint8_t temporary_allocations[4096];
-
     SDL_Window* window;
     SDL_Renderer* renderer;
     bool running;

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <SDL.h>
-#include "geometry.h"
 
 typedef struct {
     uint32_t level;
