@@ -24,7 +24,10 @@
 #include <string.h>
 #include <stdint.h>
 
-#define INITIAL_CAPACITY_BYTES 32
+// First allocation will be at least this many bytes
+#define FIRST_ALLOC_MIN_BYTES 32
+#define DEFAULT_ALLOC_FN malloc
+#define DEFAULT_FREE_FN free
 
 struct _Vector {
     // Max number of items the vector can currently hold (will be resized as needed).
@@ -35,34 +38,36 @@ struct _Vector {
     size_t item_size;
     // Contiguous memory holding vector items
     void* data;
+    // Allocator
+    AllocFn alloc_fn;
+    FreeFn free_fn;
 };
 
-static AllocFn _alloc_fn = malloc;
-static FreeFn _free_fn = free;
 
 static int resize(Vector v, size_t new_capacity) {
-    void* new_data = _alloc_fn(v->item_size * new_capacity);
+    void* new_data = v->alloc_fn(v->item_size * new_capacity);
     if (new_data == NULL) {
         return -1;
     }
 
     if (v->size > 0) {
         memcpy(new_data, v->data, v->size * v->item_size);
-        _free_fn(v->data);
+        v->free_fn(v->data);
     }
     v->data = new_data;
     v->capacity = new_capacity;
     return 0;
 }
 
-void vector_set_allocator(AllocFn alloc_fn, FreeFn free_fn) {
-    _alloc_fn = alloc_fn;
-    _free_fn = free_fn;
+Vector vector_create(size_t item_size) {
+    return vector_create_with_allocator(item_size, DEFAULT_ALLOC_FN, DEFAULT_FREE_FN);
 }
 
-Vector vector_create(size_t item_size) {
-    Vector instance = _alloc_fn(sizeof(struct _Vector));
+Vector vector_create_with_allocator(size_t item_size, AllocFn alloc_fn, FreeFn free_fn) {
+    Vector instance = alloc_fn(sizeof(struct _Vector));
     if (instance) {
+        instance->alloc_fn = alloc_fn;
+        instance->free_fn = free_fn;
         instance->capacity = 0;
         instance->size = 0;
         instance->item_size = item_size;
@@ -73,12 +78,14 @@ Vector vector_create(size_t item_size) {
 }
 
 Vector vector_clone(Vector src) {
-    Vector instance = _alloc_fn(sizeof(struct _Vector));
+    Vector instance = src->alloc_fn(sizeof(struct _Vector));
     if (instance) {
+        instance->alloc_fn = src->alloc_fn;
+        instance->free_fn = src->free_fn;
         instance->capacity = src->capacity;
         instance->size = src->size;
         instance->item_size = src->item_size;
-        instance->data = _alloc_fn(src->capacity * src->item_size);
+        instance->data = src->alloc_fn(src->capacity * src->item_size);
         memcpy(instance->data, src->data, src->size * src->item_size);
     }
     return instance;
@@ -95,10 +102,10 @@ int vector_push_back(Vector v, const void* item) {
     if (v->capacity <= v->size) {
         size_t new_capacity = v->capacity * 2;
         if (v->capacity == 0) {
-            if (v->item_size > INITIAL_CAPACITY_BYTES) {
+            if (v->item_size > FIRST_ALLOC_MIN_BYTES) {
                 new_capacity = 1;
             } else {
-                new_capacity = INITIAL_CAPACITY_BYTES / v->item_size;
+                new_capacity = FIRST_ALLOC_MIN_BYTES / v->item_size;
             }
         }
         int resize_status = resize(v, new_capacity);
@@ -156,10 +163,10 @@ int vector_insert(Vector v, const void* item, size_t index) {
     if (v->capacity <= v->size) {
         size_t new_capacity = v->capacity * 2;
         if (v->capacity == 0) {
-            if (v->item_size > INITIAL_CAPACITY_BYTES) {
+            if (v->item_size > FIRST_ALLOC_MIN_BYTES) {
                 new_capacity = 1;
             } else {
-                new_capacity = INITIAL_CAPACITY_BYTES / v->item_size;
+                new_capacity = FIRST_ALLOC_MIN_BYTES / v->item_size;
             }
         }
         int resize_status = resize(v, new_capacity);
@@ -187,9 +194,13 @@ size_t vector_size(Vector v) {
     return v->size;
 }
 
+void vector_clear(Vector v) {
+    v->size = 0;
+}
+
 void vector_destroy(Vector v) {
     if (v->data) {
-        _free_fn(v->data);
+        v->free_fn(v->data);
     }
-    _free_fn(v);
+    v->free_fn(v);
 }

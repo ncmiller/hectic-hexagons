@@ -127,6 +127,13 @@ void draw_hex(Hex* hex) {
         .h = HEX_SOURCE_HEIGHT,
     };
 
+    if (0 != SDL_SetTextureAlphaMod(
+            _graphics.hex_basic_texture,
+            hex->alpha * 255.0f)) {
+        SDL_Log("SDL_SetTextureAlphaMod error %s", SDL_GetError());
+        return;
+    }
+
     if (!hex->is_rotating) {
         SDL_Rect dest = {
             .x = hex->hex_point.x,
@@ -170,14 +177,6 @@ void draw_hex(Hex* hex) {
         rotation_point.x *= hex->scale;
         rotation_point.y *= hex->scale;
 
-#if 0
-        if (0 != SDL_SetTextureAlphaMod(
-                _graphics.hex_basic_texture,
-                hex->alpha * 255.0f)) {
-            SDL_Log("SDL_SetTextureAlphaMod error %s", SDL_GetError());
-            return;
-        }
-#endif
         if (0 != SDL_RenderCopyEx(
                 window_renderer(),
                 _graphics.hex_basic_texture,

@@ -2,6 +2,7 @@
 #include "window.h"
 #include "time_now.h"
 #include "hex.h"
+#include "macros.h"
 #include <stdlib.h>
 #include <assert.h>
 
@@ -90,7 +91,8 @@ static void rotate_hexes(const HexCoord* coords, size_t num_coords, bool clockwi
     }
 }
 
-static void handle_rotation(void) {
+// Returns true if rotation was completed.
+static bool handle_rotation(void) {
     Cursor* cursor = &g_state.cursor;
     Hex* cursor_hex = &g_state.hexes[cursor->hex_anchor.q][cursor->hex_anchor.r];
 
@@ -126,6 +128,7 @@ static void handle_rotation(void) {
             hexes_to_rotate[2] = neighbors.coords[1];
             rotate_hexes(hexes_to_rotate, 3, is_rotate_clockwise);
         }
+        return true;
     } else {
         const double angle = rotation_progress * game->degrees_to_rotate;
         double scale = 1.0f;
@@ -151,7 +154,94 @@ static void handle_rotation(void) {
             hex->rotation_angle = angle;
             hex->scale = scale;
         }
+        return false;
     }
+}
+
+// Returns true if any hexes became newly locked (were falling, but no longer falling)
+bool handle_physics(void) {
+    bool hex_became_locked = false;
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            Hex* hex = hex_at(q, r);
+            if (hex->is_falling) {
+                // TODO - update falling animation, detect collisions
+                bool collided = false;
+                if (collided) {
+                    // TODO - set final position
+                    hex->is_falling = false;
+                    hex_became_locked = true;
+                }
+            }
+        }
+    }
+
+    return hex_became_locked;
+}
+
+// Computes score, updates combos remaining, and marks hexes as matched.
+static void handle_flower(const HexCoord* hex_coords, size_t num_coords) {
+    assert(num_coords == 7);
+
+    if (game->combos_remaining > 0) {
+        game->combos_remaining--;
+    }
+
+    Hex* center_hex = &g_state.hexes[hex_coords[0].q][hex_coords[0].r];
+    bool starflower_center = hex_is_starflower(center_hex);
+    bool black_pearl_center = hex_is_black_pearl(center_hex);
+
+    center_hex->is_matched = true;
+
+    size_t num_neighbor_multipliers = 0;
+    bool all_neighbors_starflower = true;
+    bool all_neighbors_black_pearl = true;
+    for (size_t i = 0; i < 6; i++) {
+        Hex* n_hex = &g_state.hexes[hex_coords[i+1].q][hex_coords[i+1].r];
+
+        num_neighbor_multipliers += (hex_is_multiplier(n_hex) ? 1 : 0);
+        if (!hex_is_starflower(n_hex)) {
+            all_neighbors_starflower = false;
+        }
+        if (!hex_is_black_pearl(n_hex)) {
+            all_neighbors_black_pearl = false;
+        }
+
+        n_hex->is_matched = true;
+    }
+
+    if (all_neighbors_starflower) {
+        uint32_t mask = (1 << HEX_TYPE_BLACK_PEARL_UP) | (1 << HEX_TYPE_BLACK_PEARL_DOWN);
+        center_hex->type = hex_random_type_with_mask(mask);
+    } else if (all_neighbors_black_pearl) {
+        // TODO - set flag to end game
+    } else {
+        center_hex->type = HEX_TYPE_STARFLOWER;
+    }
+
+    // Base score
+    double local_score = game->level * 1000.0f;
+
+    // Multiplier bonus for center hex
+    if (starflower_center) {
+        local_score *= 1.5f;
+    } else if (black_pearl_center) {
+        local_score *= 2.5f;
+    }
+
+    // Multiplier bonus for neighbor hexes
+    if (all_neighbors_starflower) {
+        local_score *= 10.0f;
+    } else if (all_neighbors_black_pearl) {
+        local_score *= 200.0f;
+    } else {
+        for (int i = 0; i < num_neighbor_multipliers; i++) {
+            local_score *= 2.0f;
+        }
+    }
+
+    game->score += (uint32_t)local_score;
+    // TODO - add LocalScore to vector
 }
 
 bool game_init(void) {
@@ -193,6 +283,12 @@ bool game_init(void) {
 
     cursor_init(&g_state.cursor);
 
+    game->hex_coords = vector_create(sizeof(HexCoord));
+    vector_reserve(game->hex_coords, NUM_TOTAL_HEXES);
+
+    game->local_scores = vector_create(sizeof(LocalScore));
+    vector_reserve(game->local_scores, NUM_TOTAL_HEXES);
+
     return true;
 }
 
@@ -217,7 +313,32 @@ bool game_init(void) {
 void game_update(void) {
     handle_input();
 
+    bool rotation_finished = false;
     if (game->rotation_in_progress) {
-        handle_rotation();
+        rotation_finished = handle_rotation();
+    }
+
+    bool hex_finished_falling = handle_physics();
+
+    if (rotation_finished || hex_finished_falling) {
+        // Flowers
+        size_t iteration = 0;
+        while (1) {
+            vector_clear(game->hex_coords);
+            size_t flower_size = hex_find_one_flower(&game->hex_coords);
+            if (flower_size == 0) {
+                break;
+            }
+            handle_flower(vector_data_at(game->hex_coords, 0), vector_size(game->hex_coords));
+            assert(iteration++ < 100);
+        }
+
+        // TODO - check for simple cluster matches
+        // TODO - check for bomb diffusals
+        // TODO - check for MMCs
+        // TODO - trigger hexes to fall
+        // TODO - respawn cleared hexes
+
+        hex_for_each(hex_clear_is_matched);
     }
 }

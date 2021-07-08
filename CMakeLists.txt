@@ -28,6 +28,7 @@ set(source_files
     src/hex.c
     src/constants.c
     src/statistics.c
+    src/vector.c
 )
 
 

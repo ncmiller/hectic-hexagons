@@ -29,20 +29,15 @@ typedef struct _Vector* Vector;
 typedef void* (*AllocFn)(size_t);
 typedef void (*FreeFn)(void*);
 
-// Set a custom allocator, to override default malloc/free.
-// Once set, this will be used for all subsequent allocations
-// for all vector instances.
-//
-// If you call this, make sure to do it only once, before you've
-// created any vectors.
-void vector_set_allocator(AllocFn alloc_fn, FreeFn free_fn);
-
 // Creates a new vector.
 //
 // Returns:
 //   On success, a handle to the created vector
 //   On failure, returns NULL
 Vector vector_create(size_t item_size);
+
+// Creates a vector with custom alloc and free functions.
+Vector vector_create_with_allocator(size_t item_size, AllocFn alloc_fn, FreeFn free_fn);
 
 // Clone a vector.
 //
@@ -117,6 +112,9 @@ int vector_insert(Vector, const void* item, size_t index);
 
 // Returns the number of items currently in the vector.
 size_t vector_size(Vector);
+
+// Clears the vector, size reset to 0
+void vector_clear(Vector);
 
 // Destroys the vector. The Vector handle is no longer usable after calling this.
 void vector_destroy(Vector);

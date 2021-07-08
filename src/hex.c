@@ -99,15 +99,17 @@ Hex* hex_at(int q, int r) {
 }
 
 HexType hex_random_type(void) {
+    return hex_random_type_with_mask(LEVEL_HEX_TYPE_MASK[g_state.game.level]);
+}
+
+HexType hex_random_type_with_mask(uint32_t mask) {
     // TODO - support for different odds of rolling multipliers and bombs
     //
     // For Hexic HD, people online report roughly 3% drop rate for multipliers.
     // Not sure about bombs.
-    int level = g_state.game.level;
     HexType allowed_types[NUM_HEX_TYPES] = {0};
     size_t num_allowed_types = 0;
     for (int bit = 0; bit < NUM_HEX_TYPES; bit++) {
-        uint32_t mask = LEVEL_HEX_TYPE_MASK[level];
         if ((1 << bit) & mask) {
             allowed_types[num_allowed_types++] = bit;
         }
@@ -148,7 +150,9 @@ bool hex_has_flower_match(int q, int r) {
         }
     }
 
-    // Check that all neighbors have the same type
+    // Check that all neighbors have either:
+    //   1. all the same type
+    //   2. all the same color (mix of basic, multiplier, bomb)
     HexType type = g_state.hexes[neighbors.coords[0].q][neighbors.coords[0].r].type;
     for (int i = 1; i < neighbors.num_neighbors; i++) {
         HexCoord neighbor_coord = neighbors.coords[i];
@@ -158,4 +162,77 @@ bool hex_has_flower_match(int q, int r) {
         }
     }
     return true;
+}
+
+size_t hex_find_one_flower(Vector* hex_coords) {
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            if (hex_at(q, r)->is_matched) {
+                continue;
+            }
+
+            if (hex_has_flower_match(q, r)) {
+                HexCoord c = (HexCoord){ .q = q, .r = r };
+                vector_push_back(*hex_coords, &c);
+
+                HexNeighbors neighbors = {0};
+                hex_neighbors(q, r, &neighbors, ALL_NEIGHBORS);
+                assert(neighbors.num_neighbors == 6);
+                for (int i = 0; i < 6; i++) {
+                    vector_push_back(*hex_coords, &neighbors.coords[i]);
+                }
+                return 7;
+            }
+        }
+    }
+    return 0;
+}
+
+size_t hex_find_one_simple_cluster(Vector* hex_coords) {
+    // TODO
+    return 0;
+}
+
+size_t hex_find_one_bomb_cluster(Vector* hex_coords) {
+    // TODO
+    return 0;
+}
+
+size_t hex_find_one_mmc_cluster(Vector* hex_coords) {
+    // TODO
+    return 0;
+}
+
+bool hex_is_black_pearl(const Hex* hex) {
+    return (hex->type == HEX_TYPE_BLACK_PEARL_UP) || (hex->type == HEX_TYPE_BLACK_PEARL_DOWN);
+}
+
+bool hex_is_bomb(const Hex* hex) {
+    // TODO
+    return false;
+}
+
+bool hex_is_basic(const Hex* hex) {
+    return (hex->type >= HEX_TYPE_GREEN && hex->type <= HEX_TYPE_RED);
+}
+
+bool hex_is_multiplier(const Hex* hex) {
+    // TODO
+    return false;
+}
+
+bool hex_is_starflower(const Hex* hex) {
+    return (hex->type == HEX_TYPE_STARFLOWER);
+}
+
+void hex_clear_is_matched(Hex* hex) {
+    hex->is_matched = false;
+}
+
+void hex_for_each(HexFn fn) {
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            fn(hex_at(q, r));
+        }
+    }
 }
