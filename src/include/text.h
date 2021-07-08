@@ -1,7 +1,7 @@
 #pragma once
 #include <stdbool.h>
 #include <SDL_ttf.h>
-#include "geometry.h"
+#include "point.h"
 
 #define TEXT_MAX_LEN 128
 

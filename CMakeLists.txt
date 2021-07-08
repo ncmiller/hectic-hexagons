@@ -22,13 +22,16 @@ set(source_files
     src/input.c
     src/game.c
     src/text.c
-    src/vector.c
     src/window.c
     src/time_now.c
+    src/cursor.c
+    src/hex.c
+    src/constants.c
+    src/statistics.c
 )
 
 
-set(CMAKE_C_FLAGS "-std=c11 -Wall -Werror -Wno-unused-function")
+set(CMAKE_C_FLAGS "-std=gnu11 -Wall -Werror -Wno-unused-function")
 
 set(ENABLE_DEBUG 1)
 if(ENABLE_DEBUG)

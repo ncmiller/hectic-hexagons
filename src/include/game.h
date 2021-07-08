@@ -1,6 +1,10 @@
 #pragma once
 
 #include <SDL.h>
+#include <stdbool.h>
+#include <stdint.h>
+
+#define MAX_NUM_LEVELS 7
 
 typedef struct {
     uint32_t level;

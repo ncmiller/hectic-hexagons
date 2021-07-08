@@ -1,7 +1,20 @@
 #include "graphics.h"
 #include "game_state.h"
 #include "window.h"
+#include "constants.h"
+#include "statistics.h"
 #include <SDL_image.h>
+
+#define HEX_SOURCE_WIDTH 60
+#define HEX_SOURCE_HEIGHT 52
+
+#if 0 // 1080p
+#define CURSOR_RADIUS 12
+#define FONT_SIZE 24
+#else // 720p
+#define CURSOR_RADIUS 8
+#define FONT_SIZE 20
+#endif
 
 typedef struct {
     SDL_Texture* hex_basic_texture;
@@ -30,10 +43,6 @@ static SDL_Texture* load_texture(const char* path) {
 
     SDL_FreeSurface(surface);
     return texture;
-}
-
-static double fps(void) {
-    return 1000.0f / g_state.statistics.render_ave_ms;
 }
 
 static bool load_all_media(void) {
@@ -188,10 +197,10 @@ void graphics_update(void) {
 
     SDL_SetRenderDrawColor(window_renderer(), 0x11, 0x11, 0x11, 0xFF);
     SDL_Rect board_rect = {
-        .x = g_state.constants.board.x,
-        .y = g_state.constants.board.y,
-        .w = g_state.constants.board_width,
-        .h = g_state.constants.board_height
+        .x = g_constants.board.x,
+        .y = g_constants.board.y,
+        .w = g_constants.board_width,
+        .h = g_constants.board_height
     };
     SDL_RenderFillRect(window_renderer(), &board_rect);
 
@@ -235,10 +244,10 @@ void graphics_update(void) {
     snprintf(text_buffer(&_graphics.score_text), TEXT_MAX_LEN, "Score: %u", g_state.game.score);
     text_draw(&_graphics.score_text);
 
-    Statistics* stats = &g_state.statistics;
     Text* fps_text = &_graphics.fps_text;
-    if (stats->total_frames > 0 && stats->total_frames % 60 == 0) {
-        snprintf(text_buffer(fps_text), TEXT_MAX_LEN, "FPS: %3.1f", fps());
+    uint32_t frames = statistics_total_frames();
+    if (frames > 0 && frames % 60 == 0) {
+        snprintf(text_buffer(fps_text), TEXT_MAX_LEN, "FPS: %3.1f", statistics_fps());
     }
     text_draw(fps_text);
 }
