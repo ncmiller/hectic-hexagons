@@ -19,7 +19,6 @@
 
 // Convenience accessors to global state
 static Game* game = &g_state.game;
-static Input* input = &g_state.input;
 
 static bool board_has_any_matches(void) {
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
@@ -150,30 +149,66 @@ static void handle_local_score_animations(void) {
 }
 
 static void handle_input(void) {
-    bool flower_match_is_animating = (vector_size(game->flower_match_animations) > 0);
-    if (game->rotation_in_progress || flower_match_is_animating) {
-        return;
-    }
+    bool go_up = false;
+    bool go_down = false;
+    bool go_left = false;
+    bool go_right = false;
+    bool rotate_cw = false;
+    bool rotate_ccw = false;
 
+    Input* input = &g_state.input;
     Cursor* cursor = &g_state.cursor;
     if (input->up) {
         input->up = false;
-        cursor_up(cursor);
-    } else if (input->down) {
+        go_up = true;
+    }
+    if (input->down) {
         input->down = false;
-        cursor_down(cursor);
-    } else if (input->right) {
+        go_down = true;
+    }
+    if (input->right) {
         input->right = false;
-        cursor_right(cursor);
-    } else if (input->left) {
+        go_right = true;
+    }
+    if (input->left) {
         input->left = false;
-        cursor_left(cursor);
-    } else if (input->spacebar) {
+        go_left = true;
+    }
+    if (input->spacebar) {
         input->spacebar = false;
         test_boards_print_current();
     }
+    if (input->rotate_cw) {
+        input->rotate_cw = false;
+        rotate_cw = true;
+    }
+    if (input->rotate_ccw) {
+        input->rotate_ccw = false;
+        rotate_ccw = true;
+    }
 
-    bool start_rotation = input->rotate_cw || input->rotate_ccw;
+    bool animation_in_progress =
+        (vector_size(game->flower_match_animations) > 0) ||
+        game->rotation_in_progress;
+
+    if (animation_in_progress) {
+        return;
+    }
+
+    if (go_up) {
+        cursor_up(cursor);
+    }
+    if (go_down) {
+        cursor_down(cursor);
+    }
+    if (go_left) {
+        cursor_left(cursor);
+    }
+    if (go_right) {
+        cursor_right(cursor);
+    }
+
+    bool start_rotation = rotate_cw || rotate_ccw;
     if (start_rotation && !game->rotation_in_progress) {
         game->rotation_in_progress = true;
         game->rotation_start_time = now_ms();
@@ -183,11 +218,9 @@ static void handle_input(void) {
         bool is_starflower_rotation =
             (cursor->position == CURSOR_POS_ON) && (cursor_hex_type == HEX_TYPE_STARFLOWER);
 
-        if (input->rotate_cw) {
-            input->rotate_cw = false;
+        if (rotate_cw) {
             game->degrees_to_rotate = (is_starflower_rotation ? 60.0f : 120.0f);
-        } else if (input->rotate_ccw) {
-            input->rotate_ccw = false;
+        } else if (rotate_ccw) {
             game->degrees_to_rotate = (is_starflower_rotation ? -60.0f : -120.0f);
         }
     }
