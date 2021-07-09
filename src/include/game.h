@@ -2,33 +2,37 @@
 
 #include "text.h"
 #include "vector.h"
+#include "hex.h"
 #include <SDL.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-#define MAX_NUM_LEVELS 7
+typedef struct {
+    bool in_progress;
+    uint64_t start_time;
+    uint32_t score;
+    Text text;
+} LocalScoreAnimation;
 
 typedef struct {
-    uint32_t score;
-    uint64_t fade_start_time;
-    Text text;
-} LocalScore;
+    bool in_progress;
+    uint64_t start_time;
+    HexCoord flower_center;
+} FlowerMatchAnimation;
 
 typedef struct {
     uint32_t level;
     uint32_t combos_remaining;
     uint32_t score;
 
-    // Rotation
+    // Rotation animation
     bool rotation_in_progress;
     double degrees_to_rotate;
     uint64_t rotation_start_time;
 
-    // Temporary storage for HexCoords, used during hex matching phase
-    Vector hex_coords;
-
-    // Temporary storage for LocalScores
-    Vector local_scores;
+    Vector hex_coords; // HexCoord
+    Vector flower_match_animations; // FlowerMatchAnimation
+    Vector local_score_animations; // LocalScoreAnimation
 } Game;
 
 bool game_init(void);

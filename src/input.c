@@ -27,6 +27,8 @@ void input_update(void) {
                 g_state.input.left = true;
             } else if (e.key.keysym.sym == SDLK_RIGHT) {
                 g_state.input.right = true;
+            } else if (e.key.keysym.sym == SDLK_SPACE) {
+                g_state.input.spacebar = true;
             }
         }
     }

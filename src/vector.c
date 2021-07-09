@@ -23,6 +23,7 @@
 
 #include <string.h>
 #include <stdint.h>
+#include <SDL.h>
 
 // First allocation will be at least this many bytes
 #define FIRST_ALLOC_MIN_BYTES 32
@@ -196,6 +197,35 @@ size_t vector_size(Vector v) {
 
 void vector_clear(Vector v) {
     v->size = 0;
+}
+
+void vector_print(Vector v, VectorPrintFn fn) {
+    char item_print_buffer[80];
+    SDL_Log("Vector size %zu", vector_size(v));
+    for (size_t i = 0; i < vector_size(v); i++) {
+        fn(vector_data_at(v, i), item_print_buffer, sizeof(item_print_buffer));
+        item_print_buffer[sizeof(item_print_buffer) - 1] = 0;
+        SDL_Log("   [%zu]: %s\n", i, item_print_buffer);
+    }
+}
+
+void vector_erase_if(Vector v, VectorEraseFn fn) {
+    while (1) {
+        int index_to_erase = -1;
+        for (size_t i = 0; i < vector_size(v); i++) {
+            if (fn(vector_data_at(v, i))) {
+                index_to_erase = i;
+                break;
+            }
+        }
+
+        if (index_to_erase == -1) {
+            // Nothing to erase, break out of while(1)
+            break;
+        } else {
+            vector_erase(v, index_to_erase);
+        }
+    }
 }
 
 void vector_destroy(Vector v) {

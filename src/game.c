@@ -3,11 +3,15 @@
 #include "time_now.h"
 #include "hex.h"
 #include "macros.h"
+#include "test_boards.h"
 #include <stdlib.h>
 #include <assert.h>
+#include <inttypes.h>
 
 #define ROTATION_TIME_MS 150
 #define ROTATION_MAX_SCALE 1.5f
+#define FLOWER_MATCH_ANIMATION_TIME_MS 800
+#define FLOWER_MATCH_MAX_SCALE 2.0f
 
 // Convenience accessors to global state
 static Game* game = &g_state.game;
@@ -27,9 +31,85 @@ static bool board_has_any_matches(void) {
     return false;
 }
 
+static void flower_animation_print(const void* vector_item, char* buffer, size_t buffer_size) {
+    const FlowerMatchAnimation* fma = (const FlowerMatchAnimation*)vector_item;
+    snprintf(buffer, buffer_size,
+        "in_progress = %u, start_time = %" PRIu64 ", flower_center = (%u,%u)",
+        fma->in_progress,
+        fma->start_time,
+        fma->flower_center.q,
+        fma->flower_center.r);
+}
+
+static bool flower_animation_in_progress(const void* vector_item) {
+    const FlowerMatchAnimation* fma = (const FlowerMatchAnimation*)vector_item;
+    return !fma->in_progress;
+}
+
+static void handle_flower_match_animations(void) {
+    for (size_t i = 0; i < vector_size(game->flower_match_animations); i++) {
+        FlowerMatchAnimation* fma = (FlowerMatchAnimation*)
+            vector_data_at(game->flower_match_animations, i);
+
+        const double animation_progress =
+            (double)(now_ms() - fma->start_time) /
+            (double)FLOWER_MATCH_ANIMATION_TIME_MS;
+
+        HexNeighbors neighbors = {0};
+        HexCoord coord = fma->flower_center;
+        hex_neighbors(coord.q, coord.r, &neighbors, ALL_NEIGHBORS);
+
+        if (animation_progress > 1.0f) {
+            fma->in_progress = false;
+            for (int i = 0; i < neighbors.num_neighbors; i++) {
+                Hex* hex = &g_state.hexes[neighbors.coords[i].q][neighbors.coords[i].r];
+                hex->is_flower_fading = false;
+                hex->alpha = 1.0f;
+                hex->scale = 1.0f;
+            }
+        } else {
+            double alpha = 0.0f;
+            double scale = 0.0f;
+
+            { // compute alpha
+                double s0 = 1.0f;
+                double s1 = 0.0f;
+                double t = animation_progress;
+                alpha = (1.0f - t) * s0 + t * s1;
+            }
+
+            { // compute scale
+                double s0 = 1.0f;
+                double s1 = FLOWER_MATCH_MAX_SCALE;
+                double t = animation_progress;
+                scale = (1.0f - t) * s0 + t * s1;
+            }
+
+            for (int i = 0; i < neighbors.num_neighbors; i++) {
+                Hex* hex = &g_state.hexes[neighbors.coords[i].q][neighbors.coords[i].r];
+                hex->is_flower_fading = true;
+                hex->flower_center = fma->flower_center;
+                hex->alpha = alpha;
+                hex->scale = scale;
+            }
+        }
+    }
+
+    // Erase completed animations
+    // vector_print(game->flower_match_animations, flower_animation_print);
+    vector_erase_if(game->flower_match_animations, flower_animation_in_progress);
+}
+
+static void handle_local_score_animations(void) {
+    for (size_t i = 0; i < vector_size(game->local_score_animations); i++) {
+        // TODO
+    }
+    // TODO - erase completed animations
+}
+
 static void handle_input(void) {
-    // Wait for rotation to finish before processing any more inputs
-    if (game->rotation_in_progress) {
+    bool flower_match_is_animating = (vector_size(game->flower_match_animations) > 0);
+    if (game->rotation_in_progress || flower_match_is_animating) {
         return;
     }
 
@@ -46,6 +126,9 @@ static void handle_input(void) {
     } else if (input->left) {
         input->left = false;
         cursor_left(cursor);
+    } else if (input->spacebar) {
+        input->spacebar = false;
+        test_boards_print_current();
     }
 
     bool start_rotation = input->rotate_cw || input->rotate_ccw;
@@ -241,6 +324,15 @@ static void handle_flower(const HexCoord* hex_coords, size_t num_coords) {
     }
 
     game->score += (uint32_t)local_score;
+
+    // Start flower match animation
+    FlowerMatchAnimation fma = {
+        .in_progress = true,
+        .start_time = now_ms(),
+        .flower_center = hex_coords[0],
+    };
+    vector_push_back(game->flower_match_animations, &fma);
+
     // TODO - add LocalScore to vector
 }
 
@@ -281,13 +373,18 @@ bool game_init(void) {
         }
     }
 
+    // For testing - load a specific board
+    // test_boards_load(g_test_board_six_black_pearls);
+
     cursor_init(&g_state.cursor);
 
     game->hex_coords = vector_create(sizeof(HexCoord));
-    vector_reserve(game->hex_coords, NUM_TOTAL_HEXES);
+    game->local_score_animations = vector_create(sizeof(LocalScoreAnimation));
+    game->flower_match_animations = vector_create(sizeof(FlowerMatchAnimation));
 
-    game->local_scores = vector_create(sizeof(LocalScore));
-    vector_reserve(game->local_scores, NUM_TOTAL_HEXES);
+    vector_reserve(game->hex_coords, NUM_TOTAL_HEXES);
+    vector_reserve(game->local_score_animations, NUM_TOTAL_HEXES);
+    vector_reserve(game->flower_match_animations, NUM_TOTAL_HEXES);
 
     return true;
 }
@@ -295,7 +392,7 @@ bool game_init(void) {
 // The general plan for each game update is:
 //
 //  1. Get user input, possibly starting a rotation.
-//  2. Update rotation and falling animations. If any rotation of fall is completed:
+//  2. Update rotation and falling animations. If any rotation or fall is completed:
 //      2a. Check for combos and score them.
 //      2b. Remove combo'd hexes and respawn them above the board.
 //      2c. Start falling animation for each hex above the combo'd hexes.
@@ -305,17 +402,20 @@ bool game_init(void) {
 //  * Simple clusters (3, 4, or 5 of the same hex type, or multipliers clusters of any color)
 //  * Bomb diffusals (if combined with a multiplier, this will eliminate all of that color)
 //  * MMC clusters (whatever clusters remain, containing a mix of basic colors and multiplers)
-//
-// To find flowers, we simply iterate over the entire board, checking to see if each hex is the
-// center of a starflower. It's dumb, but simple.
-//
-// To find clusters, we use iterative depth-first search.
 void game_update(void) {
     handle_input();
 
     bool rotation_finished = false;
     if (game->rotation_in_progress) {
         rotation_finished = handle_rotation();
+    }
+
+    if (vector_size(game->flower_match_animations) > 0) {
+        handle_flower_match_animations();
+    }
+
+    if (vector_size(game->local_score_animations) > 0) {
+        handle_local_score_animations();
     }
 
     bool hex_finished_falling = handle_physics();

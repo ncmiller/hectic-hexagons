@@ -1,9 +1,10 @@
 #pragma once
 
 #include "point.h"
-#include "game.h"
+#include "vector.h"
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #if 0 // 1080p
 // Source png is 60 x 52, scaling up by 1.75
@@ -27,6 +28,8 @@
 #define BLACK_PEARL_DOWN_NEIGHBORS 0x2A
 #define TRIO_LEFT_NEIGHBORS        0x30
 #define TRIO_RIGHT_NEIGHBORS       0x06
+
+#define MAX_NUM_LEVELS 7
 
 // Bitmasks to select specific hex types to spawn, based on level.
 // Bit index corresponds to HexType (e.g. bit 0 is green, bit 1 is blue, etc).
@@ -53,7 +56,8 @@ typedef enum {
     HEX_TYPE_BLACK_PEARL_DOWN,
     // TODO multipliers
     // TODO bombs
-    NUM_HEX_TYPES
+    NUM_HEX_TYPES,
+    HEX_TYPE_INVALID = -1,
 } HexType;
 
 typedef enum {
@@ -82,12 +86,24 @@ typedef struct {
     bool is_valid;
     HexType type;
     Point hex_point; // TODO - remove, precompute
-    bool is_rotating;
-    double scale;
-    double rotation_angle;
-    double alpha;
-    bool is_falling;
+
+    // True if the hex is combo'd in some way on the current frame.
     bool is_matched;
+
+    // For general animation
+    double scale;
+    double alpha; // range [0.0, 1.0]
+
+    // For rotation animations
+    bool is_rotating;
+    double rotation_angle;
+
+    // For gravity physics animations
+    bool is_falling;
+
+    // For flower fade animations
+    bool is_flower_fading;
+    HexCoord flower_center;
 } Hex;
 
 // Get coordinate of specific neighbor of hex at (q,r)

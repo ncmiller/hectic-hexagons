@@ -11,6 +11,7 @@ find_package(SDL2_image REQUIRED)
 
 include_directories(
     src/include
+    src/test
     ${SDL2_INCLUDE_DIR}
     ${SDL2_TTF_INCLUDE_DIR}
     ${SDL2_IMAGE_INCLUDE_DIR}
@@ -29,6 +30,7 @@ set(source_files
     src/constants.c
     src/statistics.c
     src/vector.c
+    src/test/test_boards.c
 )
 
 

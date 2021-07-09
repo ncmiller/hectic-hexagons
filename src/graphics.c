@@ -115,7 +115,7 @@ bool graphics_init(void) {
     return true;
 }
 
-void draw_hex(Hex* hex) {
+void draw_animated_hex(const Hex* hex, Point animation_center) {
     if (!hex->is_valid) {
         return;
     }
@@ -127,66 +127,71 @@ void draw_hex(Hex* hex) {
         .h = HEX_SOURCE_HEIGHT,
     };
 
-    if (0 != SDL_SetTextureAlphaMod(
-            _graphics.hex_basic_texture,
-            hex->alpha * 255.0f)) {
-        SDL_Log("SDL_SetTextureAlphaMod error %s", SDL_GetError());
+
+    // Center point must be relative to hex
+    SDL_Point center = {
+        .x = animation_center.x - hex->hex_point.x,
+        .y = animation_center.y - hex->hex_point.y,
+    };
+
+    // Translate center point to origin
+    // Scale
+    // Translate back
+    double dest_x = 0.0f;
+    double dest_y = 0.0f;
+    dest_x -= (double)center.x;
+    dest_y -= (double)center.y;
+    dest_x *= (double)hex->scale;
+    dest_y *= (double)hex->scale;
+    dest_x += (double)center.x;
+    dest_y += (double)center.y;
+    dest_x += (double)hex->hex_point.x;
+    dest_y += (double)hex->hex_point.y;
+
+    SDL_Rect dest = {
+        .x = dest_x,
+        .y = dest_y,
+        .w = HEX_WIDTH * hex->scale,
+        .h = HEX_HEIGHT * hex->scale,
+    };
+
+    // Center point is relative to dest, so we have to account for scaling factor here too.
+    center.x *= hex->scale;
+    center.y *= hex->scale;
+
+    SDL_SetTextureAlphaMod(_graphics.hex_basic_texture, hex->alpha * 255.0f);
+    SDL_RenderCopyEx(
+        window_renderer(),
+        _graphics.hex_basic_texture,
+        &src,
+        &dest,
+        hex->rotation_angle,
+        &center,
+        SDL_FLIP_NONE);
+    SDL_SetTextureAlphaMod(_graphics.hex_basic_texture, 255);
+}
+
+void draw_static_hex(const Hex* hex) {
+    if (!hex->is_valid) {
         return;
     }
 
-    if (!hex->is_rotating) {
-        SDL_Rect dest = {
-            .x = hex->hex_point.x,
-            .y = hex->hex_point.y,
-            .w = HEX_WIDTH,
-            .h = HEX_HEIGHT,
-        };
-        if (0 != SDL_RenderCopy(window_renderer(), _graphics.hex_basic_texture, &src, &dest)) {
-            SDL_Log("SDL_RenderCopy error %s", SDL_GetError());
-        }
-    } else {
-        // Rotation point is relative to hex
-        SDL_Point rotation_point = {
-            .x = g_state.cursor.screen_point.x - hex->hex_point.x,
-            .y = g_state.cursor.screen_point.y - hex->hex_point.y,
-        };
+    SDL_Rect src = {
+        .x = hex->type * HEX_SOURCE_WIDTH,
+        .y = 0,
+        .w = HEX_SOURCE_WIDTH,
+        .h = HEX_SOURCE_HEIGHT,
+    };
 
-        // Translate rotation point to origin
-        // Scale
-        // Translate back
-        // Without this, the hexes look overlapped when rotating.
-        double dest_x = 0.0f;
-        double dest_y = 0.0f;
-        dest_x -= (double)rotation_point.x;
-        dest_y -= (double)rotation_point.y;
-        dest_x *= (double)hex->scale;
-        dest_y *= (double)hex->scale;
-        dest_x += (double)rotation_point.x;
-        dest_y += (double)rotation_point.y;
-        dest_x += (double)hex->hex_point.x;
-        dest_y += (double)hex->hex_point.y;
+    SDL_Rect dest = {
+        .x = hex->hex_point.x,
+        .y = hex->hex_point.y,
+        .w = HEX_WIDTH,
+        .h = HEX_HEIGHT,
+    };
 
-        SDL_Rect dest = {
-            .x = dest_x,
-            .y = dest_y,
-            .w = HEX_WIDTH * hex->scale,
-            .h = HEX_HEIGHT * hex->scale,
-        };
-
-        // Rotation point is relative to dest, so we have to account for scaling factor here too.
-        rotation_point.x *= hex->scale;
-        rotation_point.y *= hex->scale;
-
-        if (0 != SDL_RenderCopyEx(
-                window_renderer(),
-                _graphics.hex_basic_texture,
-                &src,
-                &dest,
-                hex->rotation_angle,
-                &rotation_point,
-                SDL_FLIP_NONE)) {
-            SDL_Log("SDL_RenderCopyEx error %s", SDL_GetError());
-        }
+    if (0 != SDL_RenderCopy(window_renderer(), _graphics.hex_basic_texture, &src, &dest)) {
+        SDL_Log("SDL_RenderCopy error %s", SDL_GetError());
     }
 }
 
@@ -203,36 +208,60 @@ void graphics_update(void) {
     };
     SDL_RenderFillRect(window_renderer(), &board_rect);
 
-    // Non-rotating hexes
+    // Non-animated/static hexes
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
             Hex* hex = &g_state.hexes[q][r];
-            if (!hex->is_rotating) {
-                draw_hex(hex);
+            if (!hex->is_rotating && !hex->is_flower_fading) {
+                draw_static_hex(hex);
             }
         }
     }
 
-    // TODO - draw cursor halo, rotates with pieces
+    // TODO - draw cursor halo if not animating, rotates with pieces
 
-    // Rotating hexes
-    // TODO - replace with cursor neighbors instead of looping over all
+    // Hexes with rotation animations
     if (g_state.game.rotation_in_progress) {
         for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
             for (int r = 0; r < HEX_NUM_ROWS; r++) {
-                Hex* hex = &g_state.hexes[q][r];
+                const Hex* hex = &g_state.hexes[q][r];
                 if (hex->is_rotating) {
-                    draw_hex(hex);
+                    Point cursor = {
+                        .x = g_state.cursor.screen_point.x,
+                        .y = g_state.cursor.screen_point.y,
+                    };
+                    draw_animated_hex(hex, cursor);
                 }
             }
         }
     }
 
-    // TODO - center point should rotate with hexes
-    SDL_Color darkorchid = { .r = 0x99, .g = 0x32, .b = 0xcc, .a = 0xff };
-    SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 0xff };
-    draw_circle(g_state.cursor.screen_point, CURSOR_RADIUS, black);
-    draw_circle(g_state.cursor.screen_point, CURSOR_RADIUS-1, darkorchid);
+    // Hexes with flower fade animations
+    bool flower_match_is_animating = (vector_size(g_state.game.flower_match_animations) > 0);
+    if (flower_match_is_animating) {
+        for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+            for (int r = 0; r < HEX_NUM_ROWS; r++) {
+                const Hex* hex = &g_state.hexes[q][r];
+                if (hex->is_flower_fading) {
+                    HexCoord center_coord = hex->flower_center;
+                    const Hex* center_hex = hex_at(center_coord.q, center_coord.r);
+                    Point flower_center = {
+                        .x = center_hex->hex_point.x + (HEX_WIDTH / 2),
+                        .y = center_hex->hex_point.y + (HEX_HEIGHT / 2),
+                    };
+                    draw_animated_hex(hex, flower_center);
+                }
+            }
+        }
+    }
+
+    if (!flower_match_is_animating) {
+        // Draw cursor
+        SDL_Color darkorchid = { .r = 0x99, .g = 0x32, .b = 0xcc, .a = 0xff };
+        SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 0xff };
+        draw_circle(g_state.cursor.screen_point, CURSOR_RADIUS, black);
+        draw_circle(g_state.cursor.screen_point, CURSOR_RADIUS-1, darkorchid);
+    }
 
     snprintf(text_buffer(&_graphics.level_text), TEXT_MAX_LEN, "Level: %u", g_state.game.level);
     text_draw(&_graphics.level_text);

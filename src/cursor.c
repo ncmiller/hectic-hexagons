@@ -1,4 +1,5 @@
 #include "cursor.h"
+#include "hex.h"
 #include <assert.h>
 
 static Hex* anchor(const Cursor* cursor) {

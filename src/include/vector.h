@@ -22,6 +22,7 @@
 #pragma once
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 // Opaque handle to vector
 typedef struct _Vector* Vector;
@@ -115,6 +116,13 @@ size_t vector_size(Vector);
 
 // Clears the vector, size reset to 0
 void vector_clear(Vector);
+
+// Erase all items in the vector where fn(item) return true.
+typedef bool (*VectorEraseFn)(const void* item);
+void vector_erase_if(Vector, VectorEraseFn fn);
+
+typedef void (*VectorPrintFn)(const void* item, char* buffer, size_t max_len);
+void vector_print(Vector, VectorPrintFn fn);
 
 // Destroys the vector. The Vector handle is no longer usable after calling this.
 void vector_destroy(Vector);

@@ -86,12 +86,15 @@ void hex_spawn(int q, int r) {
         return;
     }
 
-    hex->is_valid = true;
-    hex->type = hex_random_type();
-    hex->hex_point = transform_hex_to_screen(q, r);
-    hex->scale = 1.0f;
-    hex->rotation_angle = 0.0f;
-    hex->alpha = 1.0f;
+    Hex new_hex = {
+        .is_valid = true,
+        .type = hex_random_type(),
+        .hex_point = transform_hex_to_screen(q, r),
+        .scale = 1.0f,
+        .rotation_angle = 0.0f,
+        .alpha = 1.0f,
+    };
+    *hex = new_hex;
 }
 
 Hex* hex_at(int q, int r) {
