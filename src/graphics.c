@@ -4,6 +4,7 @@
 #include "constants.h"
 #include "statistics.h"
 #include <SDL_image.h>
+#include <assert.h>
 
 #define HEX_SOURCE_WIDTH 60
 #define HEX_SOURCE_HEIGHT 52
@@ -11,14 +12,17 @@
 #if 0 // 1080p
 #define CURSOR_RADIUS 12
 #define FONT_SIZE 24
+#define LOCAL_SCORE_FONT_SIZE 20
 #else // 720p
 #define CURSOR_RADIUS 8
 #define FONT_SIZE 20
+#define LOCAL_SCORE_FONT_SIZE 18
 #endif
 
 typedef struct {
     SDL_Texture* hex_basic_texture;
     TTF_Font* font;
+    TTF_Font* local_score_font;
 
     Text level_text;
     Text combos_text;
@@ -52,6 +56,8 @@ static bool load_all_media(void) {
     all_loaded &= (_graphics.hex_basic_texture != NULL);
     _graphics.font = TTF_OpenFont("media/Caviar_Dreams_Bold.ttf", FONT_SIZE);
     all_loaded &= (_graphics.font != NULL);
+    _graphics.local_score_font = TTF_OpenFont("media/Caviar_Dreams_Bold.ttf", LOCAL_SCORE_FONT_SIZE);
+    all_loaded &= (_graphics.local_score_font != NULL);
 
     if (!all_loaded) {
         SDL_Log("Failed to load media. Exiting.");
@@ -261,6 +267,17 @@ void graphics_update(void) {
         SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 0xff };
         draw_circle(g_state.cursor.screen_point, CURSOR_RADIUS, black);
         draw_circle(g_state.cursor.screen_point, CURSOR_RADIUS-1, darkorchid);
+    }
+
+    // Local score animations
+    LocalScoreAnimation* lsas = (LocalScoreAnimation*)vector_data_at(g_state.game.local_score_animations, 0);
+    for (size_t i = 0; i < vector_size(g_state.game.local_score_animations); i++) {
+        LocalScoreAnimation* lsa = &lsas[i];
+        text_set_font(&lsa->text, _graphics.local_score_font);
+        text_set_point(&lsa->text, lsa->current_point.x, lsa->current_point.y);
+        text_set_color(&lsa->text, 0xFF, 0xFF, 0xFF, (int)(255.0f * lsa->alpha));
+        snprintf(text_buffer(&lsa->text), TEXT_MAX_LEN, "%u", lsa->score);
+        text_draw(&lsa->text);
     }
 
     snprintf(text_buffer(&_graphics.level_text), TEXT_MAX_LEN, "Level: %u", g_state.game.level);

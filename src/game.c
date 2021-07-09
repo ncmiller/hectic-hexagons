@@ -4,6 +4,7 @@
 #include "hex.h"
 #include "macros.h"
 #include "bump_allocator.h"
+#include "text.h"
 #include "test_boards.h"
 #include <stdlib.h>
 #include <assert.h>
@@ -12,7 +13,9 @@
 #define ROTATION_TIME_MS 150
 #define ROTATION_MAX_SCALE 1.5f
 #define FLOWER_MATCH_ANIMATION_TIME_MS 800
-#define FLOWER_MATCH_MAX_SCALE 2.0f
+#define FLOWER_MATCH_MAX_SCALE 1.7f
+#define LOCAL_SCORE_ANIMATION_TIME_MS 1200
+#define LOCAL_SCORE_ANIMATION_MAX_HEIGHT HEX_HEIGHT
 
 // Convenience accessors to global state
 static Game* game = &g_state.game;
@@ -47,6 +50,11 @@ static bool flower_animation_in_progress(const void* vector_item) {
     return !fma->in_progress;
 }
 
+static bool local_score_animation_in_progress(const void* vector_item) {
+    const LocalScoreAnimation* lsa = (const LocalScoreAnimation*)vector_item;
+    return !lsa->in_progress;
+}
+
 static void handle_flower_match_animations(void) {
     for (size_t i = 0; i < vector_size(game->flower_match_animations); i++) {
         FlowerMatchAnimation* fma = (FlowerMatchAnimation*)
@@ -76,6 +84,7 @@ static void handle_flower_match_animations(void) {
                 double s0 = 1.0f;
                 double s1 = 0.0f;
                 double t = animation_progress;
+                t = t * t; // ease in, smash out
                 alpha = (1.0f - t) * s0 + t * s1;
             }
 
@@ -103,9 +112,41 @@ static void handle_flower_match_animations(void) {
 
 static void handle_local_score_animations(void) {
     for (size_t i = 0; i < vector_size(game->local_score_animations); i++) {
-        // TODO
+        LocalScoreAnimation* lsa = (LocalScoreAnimation*)
+            vector_data_at(game->local_score_animations, i);
+
+        const double animation_progress =
+            (double)(now_ms() - lsa->start_time) /
+            (double)LOCAL_SCORE_ANIMATION_TIME_MS;
+
+        if (animation_progress > 1.0f) {
+            lsa->in_progress = false;
+        } else {
+            double alpha = 0.0f;
+            double height_delta = 0.0f;
+
+            { // alpha
+                double s0 = 1.0f;
+                double s1 = 0.1f;
+                double t = animation_progress;
+                t = t * t; // ease in, smash out
+                alpha = (1.0f - t) * s0 + t * s1;
+            }
+
+            { // height_delta
+                double s0 = 0.0f;
+                double s1 = LOCAL_SCORE_ANIMATION_MAX_HEIGHT;
+                double t = animation_progress;
+                height_delta = (1.0f - t) * s0 + t * s1;
+            }
+
+            lsa->alpha = alpha;
+            lsa->current_point.y = lsa->start_point.y - (int)height_delta;
+        }
     }
-    // TODO - erase completed animations
+
+    // Erase completed animations
+    vector_erase_if(game->local_score_animations, local_score_animation_in_progress);
 }
 
 static void handle_input(void) {
@@ -334,7 +375,21 @@ static void handle_flower(const HexCoord* hex_coords, size_t num_coords) {
     };
     vector_push_back(game->flower_match_animations, &fma);
 
-    // TODO - add LocalScore to vector
+    // Start local score animation
+    Point start_point = (Point){
+        .x = center_hex->hex_point.x + HEX_WIDTH / 2,
+        .y = center_hex->hex_point.y + HEX_HEIGHT / 2,
+    };
+    LocalScoreAnimation lsa = {
+        .in_progress = true,
+        .start_time = now_ms(),
+        .score = (uint32_t)local_score,
+        .alpha = 1.0f,
+        .start_point = start_point,
+        .current_point = start_point,
+    };
+    text_init(&lsa.text);
+    vector_push_back(game->local_score_animations, &lsa);
 }
 
 // The general plan for each game update is:
@@ -439,8 +494,8 @@ bool game_init(void) {
     game->local_score_animations = vector_create(sizeof(LocalScoreAnimation));
     game->flower_match_animations = vector_create(sizeof(FlowerMatchAnimation));
 
-    vector_reserve(game->local_score_animations, NUM_TOTAL_HEXES);
-    vector_reserve(game->flower_match_animations, NUM_TOTAL_HEXES);
+    vector_reserve(game->local_score_animations, 10);
+    vector_reserve(game->flower_match_animations, 10);
 
     return true;
 }

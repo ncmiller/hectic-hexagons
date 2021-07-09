@@ -8,9 +8,15 @@
 #include <stdint.h>
 
 typedef struct {
+    // Managed by game
     bool in_progress;
     uint64_t start_time;
     uint32_t score;
+    double alpha; // range [0.0, 1.0]
+    Point start_point;
+    Point current_point;
+
+    // Managed by graphics
     Text text;
 } LocalScoreAnimation;
 
