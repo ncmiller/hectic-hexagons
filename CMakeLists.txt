@@ -30,6 +30,7 @@ set(source_files
     src/constants.c
     src/statistics.c
     src/vector.c
+    src/bump_allocator.c
     src/test/test_boards.c
 )
 

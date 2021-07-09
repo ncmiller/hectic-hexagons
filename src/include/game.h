@@ -30,7 +30,6 @@ typedef struct {
     double degrees_to_rotate;
     uint64_t rotation_start_time;
 
-    Vector hex_coords; // HexCoord
     Vector flower_match_animations; // FlowerMatchAnimation
     Vector local_score_animations; // LocalScoreAnimation
 } Game;

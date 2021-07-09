@@ -167,7 +167,7 @@ bool hex_has_flower_match(int q, int r) {
     return true;
 }
 
-size_t hex_find_one_flower(Vector* hex_coords) {
+size_t hex_find_one_flower(Vector hex_coords) {
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
             if (hex_at(q, r)->is_matched) {
@@ -176,13 +176,13 @@ size_t hex_find_one_flower(Vector* hex_coords) {
 
             if (hex_has_flower_match(q, r)) {
                 HexCoord c = (HexCoord){ .q = q, .r = r };
-                vector_push_back(*hex_coords, &c);
+                vector_push_back(hex_coords, &c);
 
                 HexNeighbors neighbors = {0};
                 hex_neighbors(q, r, &neighbors, ALL_NEIGHBORS);
                 assert(neighbors.num_neighbors == 6);
                 for (int i = 0; i < 6; i++) {
-                    vector_push_back(*hex_coords, &neighbors.coords[i]);
+                    vector_push_back(hex_coords, &neighbors.coords[i]);
                 }
                 return 7;
             }
@@ -191,17 +191,17 @@ size_t hex_find_one_flower(Vector* hex_coords) {
     return 0;
 }
 
-size_t hex_find_one_simple_cluster(Vector* hex_coords) {
+size_t hex_find_one_simple_cluster(Vector hex_coords) {
     // TODO
     return 0;
 }
 
-size_t hex_find_one_bomb_cluster(Vector* hex_coords) {
+size_t hex_find_one_bomb_cluster(Vector hex_coords) {
     // TODO
     return 0;
 }
 
-size_t hex_find_one_mmc_cluster(Vector* hex_coords) {
+size_t hex_find_one_mmc_cluster(Vector hex_coords) {
     // TODO
     return 0;
 }

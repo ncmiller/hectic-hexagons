@@ -20,9 +20,11 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "vector.h"
+#include "bump_allocator.h"
 
 #include <string.h>
 #include <stdint.h>
+#include <assert.h>
 #include <SDL.h>
 
 // First allocation will be at least this many bytes
@@ -209,23 +211,26 @@ void vector_print(Vector v, VectorPrintFn fn) {
     }
 }
 
-void vector_erase_if(Vector v, VectorEraseFn fn) {
-    while (1) {
-        int index_to_erase = -1;
-        for (size_t i = 0; i < vector_size(v); i++) {
-            if (fn(vector_data_at(v, i))) {
-                index_to_erase = i;
-                break;
-            }
-        }
+void vector_erase_if(Vector v, VectorEraseFn erase_fn) {
+    Vector temp = vector_create_with_allocator(
+            v->item_size, bump_allocator_alloc, bump_allocator_free);
+    vector_reserve(temp, v->capacity);
 
-        if (index_to_erase == -1) {
-            // Nothing to erase, break out of while(1)
-            break;
-        } else {
-            vector_erase(v, index_to_erase);
+    // Copy non-erased items to a new vector
+    for (size_t i = 0; i < vector_size(v); i++) {
+        const void* item = vector_data_at(v, i);
+        if (!erase_fn(item)) {
+            vector_push_back(temp, item);
         }
     }
+    assert(temp->size <= v->size);
+
+    v->size = temp->size;
+    if (temp->size > 0) {
+        memcpy(v->data, temp->data, temp->item_size * temp->size);
+    }
+
+    vector_destroy(temp);
 }
 
 void vector_destroy(Vector v) {

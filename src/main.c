@@ -4,6 +4,7 @@
 #include "constants.h"
 #include "statistics.h"
 #include "graphics.h"
+#include "bump_allocator.h"
 
 #define RETURN_IF_FALSE(x) if ((x) == false) { return 1; }
 #define CLOSE_AND_RETURN_IF_FALSE(x) if ((x) == false) { window_close(); return 1; }
@@ -12,6 +13,7 @@
 GameState g_state = {0};
 
 int main(int argc, char* argv[]) {
+    bump_allocator_init(g_state.temporary_allocations, sizeof(g_state.temporary_allocations));
     RETURN_IF_FALSE(window_init());
     RETURN_IF_FALSE(window_create());
 
@@ -29,7 +31,9 @@ int main(int argc, char* argv[]) {
         uint64_t update_diff = now_ms() - start;
         graphics_flip();
         uint64_t render_diff = now_ms() - start;
+
         statistics_update(update_diff, render_diff);
+        bump_allocator_free_all();
     }
 
     window_close();

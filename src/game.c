@@ -3,6 +3,7 @@
 #include "time_now.h"
 #include "hex.h"
 #include "macros.h"
+#include "bump_allocator.h"
 #include "test_boards.h"
 #include <stdlib.h>
 #include <assert.h>
@@ -336,6 +337,63 @@ static void handle_flower(const HexCoord* hex_coords, size_t num_coords) {
     // TODO - add LocalScore to vector
 }
 
+// The general plan for each game update is:
+//
+//  1. Get user input, possibly starting a rotation.
+//  2. Update rotation and falling animations. If any rotation or fall is completed:
+//      2a. Check for combos and score them.
+//      2b. Remove combo'd hexes and respawn them above the board.
+//      2c. Start falling animation for each hex above the combo'd hexes.
+//
+// Checking for combos is done in this order:
+//  * Flowers
+//  * Simple clusters (3, 4, or 5 of the same hex type, or multipliers clusters of any color)
+//  * Bomb diffusals (if combined with a multiplier, this will eliminate all of that color)
+//  * MMC clusters (whatever clusters remain, containing a mix of basic colors and multiplers)
+void game_update(void) {
+    handle_input();
+
+    bool rotation_finished = false;
+    if (game->rotation_in_progress) {
+        rotation_finished = handle_rotation();
+    }
+
+    if (vector_size(game->flower_match_animations) > 0) {
+        handle_flower_match_animations();
+    }
+
+    if (vector_size(game->local_score_animations) > 0) {
+        handle_local_score_animations();
+    }
+
+    bool hex_finished_falling = handle_physics();
+
+    if (rotation_finished || hex_finished_falling) {
+        // Flowers
+        Vector flowers = vector_create_with_allocator(
+                sizeof(HexCoord), bump_allocator_alloc, bump_allocator_free);
+        vector_reserve(flowers, 7);
+        size_t iteration = 0;
+        while (1) {
+            vector_clear(flowers);
+            size_t flower_size = hex_find_one_flower(flowers);
+            if (flower_size == 0) {
+                break;
+            }
+            handle_flower(vector_data_at(flowers, 0), vector_size(flowers));
+            assert(iteration++ < 100);
+        }
+
+        // TODO - check for simple cluster matches
+        // TODO - check for bomb diffusals
+        // TODO - check for MMCs
+        // TODO - trigger hexes to fall
+        // TODO - respawn cleared hexes
+
+        hex_for_each(hex_clear_is_matched);
+    }
+}
+
 bool game_init(void) {
     srand(now_ms());
 
@@ -374,71 +432,15 @@ bool game_init(void) {
     }
 
     // For testing - load a specific board
-    // test_boards_load(g_test_board_six_black_pearls);
+    test_boards_load(g_test_board_six_black_pearls);
 
     cursor_init(&g_state.cursor);
 
-    game->hex_coords = vector_create(sizeof(HexCoord));
     game->local_score_animations = vector_create(sizeof(LocalScoreAnimation));
     game->flower_match_animations = vector_create(sizeof(FlowerMatchAnimation));
 
-    vector_reserve(game->hex_coords, NUM_TOTAL_HEXES);
     vector_reserve(game->local_score_animations, NUM_TOTAL_HEXES);
     vector_reserve(game->flower_match_animations, NUM_TOTAL_HEXES);
 
     return true;
-}
-
-// The general plan for each game update is:
-//
-//  1. Get user input, possibly starting a rotation.
-//  2. Update rotation and falling animations. If any rotation or fall is completed:
-//      2a. Check for combos and score them.
-//      2b. Remove combo'd hexes and respawn them above the board.
-//      2c. Start falling animation for each hex above the combo'd hexes.
-//
-// Checking for combos is done in this order:
-//  * Flowers
-//  * Simple clusters (3, 4, or 5 of the same hex type, or multipliers clusters of any color)
-//  * Bomb diffusals (if combined with a multiplier, this will eliminate all of that color)
-//  * MMC clusters (whatever clusters remain, containing a mix of basic colors and multiplers)
-void game_update(void) {
-    handle_input();
-
-    bool rotation_finished = false;
-    if (game->rotation_in_progress) {
-        rotation_finished = handle_rotation();
-    }
-
-    if (vector_size(game->flower_match_animations) > 0) {
-        handle_flower_match_animations();
-    }
-
-    if (vector_size(game->local_score_animations) > 0) {
-        handle_local_score_animations();
-    }
-
-    bool hex_finished_falling = handle_physics();
-
-    if (rotation_finished || hex_finished_falling) {
-        // Flowers
-        size_t iteration = 0;
-        while (1) {
-            vector_clear(game->hex_coords);
-            size_t flower_size = hex_find_one_flower(&game->hex_coords);
-            if (flower_size == 0) {
-                break;
-            }
-            handle_flower(vector_data_at(game->hex_coords, 0), vector_size(game->hex_coords));
-            assert(iteration++ < 100);
-        }
-
-        // TODO - check for simple cluster matches
-        // TODO - check for bomb diffusals
-        // TODO - check for MMCs
-        // TODO - trigger hexes to fall
-        // TODO - respawn cleared hexes
-
-        hex_for_each(hex_clear_is_matched);
-    }
 }

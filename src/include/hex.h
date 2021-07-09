@@ -136,7 +136,7 @@ bool hex_has_flower_match(int q, int r);
 // The flower center will be in index 0, and the 6 neighbors will start at index 1.
 //
 // To be considered, a hex must have is_matched == false.
-size_t hex_find_one_flower(Vector* hex_coords);
+size_t hex_find_one_flower(Vector hex_coords);
 
 // Finds a single simple cluster (3, 4, or 5 of same hex type) and adds the coordinates of each
 // hex in the cluster to hex_coords.
@@ -144,19 +144,19 @@ size_t hex_find_one_flower(Vector* hex_coords);
 // Multipliers can cluster without having to be the same color.
 //
 // To be considered, a hex must have is_matched == false.
-size_t hex_find_one_simple_cluster(Vector* hex_coords);
+size_t hex_find_one_simple_cluster(Vector hex_coords);
 
 // Finds bomb clusters (mix of a basic, bomb, and multipliers of a single color) and
 // adds the coordinates of each hex in the cluster to hex_coords.
 //
 // To be considered, a hex must have is_matched == false.
-size_t hex_find_one_bomb_cluster(Vector* hex_coords);
+size_t hex_find_one_bomb_cluster(Vector hex_coords);
 
 // Finds a single MMC cluster (mix of a basic and multipliers of a single color) and
 // adds the coordinates of each hex in the cluster to hex_coords.
 //
 // To be considered, a hex must have is_matched == false.
-size_t hex_find_one_mmc_cluster(Vector* hex_coords);
+size_t hex_find_one_mmc_cluster(Vector hex_coords);
 
 bool hex_is_basic(const Hex* hex);
 bool hex_is_multiplier(const Hex* hex);
