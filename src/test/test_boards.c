@@ -1,7 +1,6 @@
 #include "test_boards.h"
 #include "game_state.h"
 #include <stdio.h>
-#include <assert.h>
 
 #define GR HEX_TYPE_GREEN
 #define BL HEX_TYPE_BLUE
@@ -56,8 +55,7 @@ void test_boards_print_current(void) {
     for (int r = 0; r < HEX_NUM_ROWS; r++) {
         for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
             const Hex* hex = &g_state.hexes[q][r];
-            if (hex->is_valid) {
-                assert(hex->type < NUM_HEX_TYPES);
+            if (hex->is_valid && hex->type < NUM_HEX_TYPES) {
                 printf("%s, ", type_to_str[hex->type]);
             } else {
                 printf("XX, ");

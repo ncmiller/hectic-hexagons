@@ -23,7 +23,7 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <assert.h>
+#include <macros.h>
 
 static struct {
     uint8_t* buffer;
@@ -42,7 +42,7 @@ void* bump_allocator_alloc(size_t size) {
 
     size_t space_remaining = _bump_allocator.buffer_size - _bump_allocator.offset;
     if (size > space_remaining) {
-        assert(false && "Allocation failed, not enough space in backing buffer");
+        ASSERT(false && "Allocation failed, not enough space in backing buffer");
         return NULL;
     }
 

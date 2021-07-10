@@ -4,7 +4,6 @@
 #include "constants.h"
 #include "statistics.h"
 #include <SDL_image.h>
-#include <assert.h>
 
 #define HEX_SOURCE_WIDTH 60
 #define HEX_SOURCE_HEIGHT 52

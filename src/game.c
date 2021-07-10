@@ -6,8 +6,8 @@
 #include "bump_allocator.h"
 #include "text.h"
 #include "test_boards.h"
+#include "macros.h"
 #include <stdlib.h>
-#include <assert.h>
 #include <inttypes.h>
 
 #define ROTATION_TIME_MS 150
@@ -343,7 +343,7 @@ bool handle_physics(void) {
 }
 
 static void handle_simple_cluster(const HexCoord* hex_coords, size_t num_coords) {
-    assert(num_coords >= 3 && num_coords <= 5);
+    ASSERT(num_coords >= 3 && num_coords <= 5);
 
     if (game->combos_remaining > 0) {
         game->combos_remaining--;
@@ -373,7 +373,7 @@ static void handle_simple_cluster(const HexCoord* hex_coords, size_t num_coords)
         // TODO - set flag to end game
         score_multiplier = 25000;
     } else {
-        assert(false && "Unknown hex type");
+        ASSERT(false && "Unknown hex type");
     }
     int local_score = (num_coords - 2) * score_multiplier * game->level;
     game->score += local_score;
@@ -401,7 +401,7 @@ static void handle_simple_cluster(const HexCoord* hex_coords, size_t num_coords)
 
 // Computes score, updates combos remaining, and marks hexes as matched.
 static void handle_flower(const HexCoord* hex_coords, size_t num_coords) {
-    assert(num_coords == 7);
+    ASSERT(num_coords == 7);
 
     if (game->combos_remaining > 0) {
         game->combos_remaining--;
@@ -519,7 +519,7 @@ void game_update(void) {
     bool hex_finished_falling = handle_physics();
 
     if (rotation_finished || hex_finished_falling) {
-        // Flowers
+        // Match flowers
         Vector flower = vector_create_with_allocator(
                 sizeof(HexCoord), bump_allocator_alloc, bump_allocator_free);
         vector_reserve(flower, 7);
@@ -531,10 +531,11 @@ void game_update(void) {
                 break;
             }
             handle_flower(vector_data_at(flower, 0), vector_size(flower));
-            assert(iteration++ < 100);
+            ASSERT(false);
+            ASSERT(iteration++ < 100);
         }
 
-        // Simple clusters
+        // Match simple clusters
         Vector simple_cluster = vector_create_with_allocator(
                 sizeof(HexCoord), bump_allocator_alloc, bump_allocator_free);
         vector_reserve(simple_cluster, 5);
@@ -547,11 +548,11 @@ void game_update(void) {
             }
             vector_print(simple_cluster, hex_coord_print);
             handle_simple_cluster(vector_data_at(simple_cluster, 0), vector_size(simple_cluster));
-            assert(iteration++ < 100);
+            ASSERT(iteration++ < 100);
         }
 
-        // TODO - check for bomb diffusals
-        // TODO - check for MMCs
+        // TODO - Match bomb cluster
+        // TODO - Match MMCs
         // TODO - trigger hexes to fall
         // TODO - respawn cleared hexes
 
@@ -575,7 +576,7 @@ bool game_init(void) {
     int reroll_attempts = 0;
     while (board_has_any_matches()) {
         reroll_attempts++;
-        assert(reroll_attempts < 100);
+        ASSERT(reroll_attempts < 100);
 
         // Fix cluster matches by rerolling (q,r)
         for (int q = 0; q < HEX_NUM_COLUMNS; q++) {

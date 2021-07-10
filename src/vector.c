@@ -24,7 +24,7 @@
 
 #include <string.h>
 #include <stdint.h>
-#include <assert.h>
+#include <macros.h>
 #include <SDL.h>
 
 // First allocation will be at least this many bytes
@@ -223,7 +223,7 @@ void vector_erase_if(Vector v, VectorEraseFn erase_fn) {
             vector_push_back(temp, item);
         }
     }
-    assert(temp->size <= v->size);
+    ASSERT(temp->size <= v->size);
 
     v->size = temp->size;
     if (temp->size > 0) {

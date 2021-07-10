@@ -4,7 +4,7 @@
 #include "bump_allocator.h"
 #include "macros.h"
 #include "window.h"
-#include <assert.h>
+#include <macros.h>
 #include <math.h>
 
 bool hex_coord_is_valid(HexCoord coord) {
@@ -64,7 +64,7 @@ HexCoord hex_neighbor_coord(int q, int r, HexNeighborID neighbor_id) {
             break;
         default:
             SDL_Log("Invalid neighbor ID %d", neighbor_id);
-            assert(false);
+            ASSERT(false);
             break;
     }
     return coord;
@@ -79,7 +79,7 @@ void hex_neighbors(int q, int r, HexNeighbors* neighbors, uint8_t mask) {
 }
 
 void hex_spawn(int q, int r) {
-    assert(q < HEX_NUM_COLUMNS && r < HEX_NUM_ROWS);
+    ASSERT(q < HEX_NUM_COLUMNS && r < HEX_NUM_ROWS);
     Hex* hex = hex_at(q, r);
 
     // For even columns, the last row of hexes are not valid
@@ -193,7 +193,7 @@ size_t hex_find_one_flower(Vector hex_coords) {
 
                 HexNeighbors neighbors = {0};
                 hex_neighbors(q, r, &neighbors, ALL_NEIGHBORS);
-                assert(neighbors.num_neighbors == 6);
+                ASSERT(neighbors.num_neighbors == 6);
                 for (int i = 0; i < 6; i++) {
                     vector_push_back(hex_coords, &neighbors.coords[i]);
                 }

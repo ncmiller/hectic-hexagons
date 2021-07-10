@@ -1,6 +1,6 @@
 #include "cursor.h"
 #include "hex.h"
-#include <assert.h>
+#include <macros.h>
 
 static Hex* anchor(const Cursor* cursor) {
     return hex_at(cursor->hex_anchor.q, cursor->hex_anchor.r);
@@ -150,6 +150,6 @@ void cursor_neighbors(const Cursor* cursor, HexNeighbors* neighbors) {
     } else if (cursor->position == CURSOR_POS_RIGHT) {
         hex_neighbors(q, r, neighbors, TRIO_RIGHT_NEIGHBORS);
     } else {
-        assert(false && "Unexpected cursor position");
+        ASSERT(false && "Unexpected cursor position");
     }
 }
