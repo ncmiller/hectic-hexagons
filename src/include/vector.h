@@ -124,5 +124,13 @@ void vector_erase_if(Vector, VectorEraseFn fn);
 typedef void (*VectorPrintFn)(const void* item, char* buffer, size_t max_len);
 void vector_print(Vector, VectorPrintFn fn);
 
+// Return:
+//  -1, if item1 < item2
+//   0, if item1 == item2
+//   1, if item1 > item2
+typedef bool (*VectorItemCompareFn)(const void* item1, const void* item2);
+void* vector_max(Vector, VectorItemCompareFn fn);
+void* vector_min(Vector, VectorItemCompareFn fn);
+
 // Destroys the vector. The Vector handle is no longer usable after calling this.
 void vector_destroy(Vector);

@@ -1,10 +1,13 @@
 #include "hex.h"
 #include "game_state.h"
 #include "constants.h"
+#include "bump_allocator.h"
+#include "macros.h"
+#include "window.h"
 #include <assert.h>
 #include <math.h>
 
-static bool hex_coord_is_valid(HexCoord coord) {
+bool hex_coord_is_valid(HexCoord coord) {
     if (coord.q < 0 || coord.r < 0) {
         return false;
     }
@@ -191,9 +194,95 @@ size_t hex_find_one_flower(Vector hex_coords) {
     return 0;
 }
 
+// This could be done more efficiently. But at least it works :)
 size_t hex_find_one_simple_cluster(Vector hex_coords) {
-    // TODO
-    return 0;
+    bool to_visit[HEX_NUM_COLUMNS][HEX_NUM_ROWS] = {0};
+    Vector dfs_stack = vector_create_with_allocator(
+            sizeof(HexCoord),
+            bump_allocator_alloc,
+            bump_allocator_free);
+
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            if (hex_at(q, r)->is_matched) {
+                continue;
+            }
+
+            // Iterative DFS
+            vector_clear(dfs_stack);
+            vector_clear(hex_coords);
+            HexCoord start = {q,r};
+            to_visit[q][r] = true;
+
+            vector_push_back(dfs_stack, &start);
+            while (vector_size(dfs_stack) > 0) {
+                HexCoord query = {0};
+                vector_pop_back(dfs_stack, &query);
+                // SDL_Log("Pop (%d,%d)", query.q, query.r);
+
+                vector_push_back(hex_coords, &query);
+
+                HexType query_type = hex_at(q, r)->type;
+
+                // Add neighbors to dfs_stack if they meet all criteria:
+                //   1. Coordinate is valid
+                //   2. Not matched
+                //   3. Not visited
+                //   3. Not already in dfs_stack
+                //   4. Type matches query type
+                //   5. Type matches prior neighbor or next neighbor type
+                HexNeighbors neighbors = {0};
+                hex_neighbors(query.q, query.r, &neighbors, ALL_NEIGHBORS);
+                for (int i = 1; i < neighbors.num_neighbors; i++) {
+                    HexCoord c1 = neighbors.coords[i - 1];
+                    HexCoord c2 = neighbors.coords[i];
+                    HexCoord c3 = neighbors.coords[(i + 1) % neighbors.num_neighbors];
+
+                    // Check criteria of the middle neighbor
+                    if (!hex_coord_is_valid(c2)) {
+                        continue;
+                    }
+                    const Hex* hex2 = hex_at(c2.q, c2.r);
+                    if (hex2->is_matched) {
+                        continue;
+                    }
+                    if (to_visit[c2.q][c2.r]) {
+                        continue;
+                    }
+                    if (hex2->type != query_type) {
+                        continue;
+                    }
+
+                    // Check prior neighbor type
+                    if (hex_coord_is_valid(c1) && hex_at(c1.q, c1.r)->type == query_type) {
+                        // SDL_Log("(%d,%d), Add (%d,%d)", query.q, query.r, c2.q, c2.r);
+                        vector_push_back(dfs_stack, &c2);
+                        to_visit[c2.q][c2.r] = true;
+                        continue;
+                    }
+
+                    // Check next neighbor type
+                    if (hex_coord_is_valid(c3) && hex_at(c3.q, c3.r)->type == query_type) {
+                        // SDL_Log("(%d,%d), Add (%d,%d)", query.q, query.r, c2.q, c2.r);
+                        vector_push_back(dfs_stack, &c2);
+                        to_visit[c2.q][c2.r] = true;
+                    }
+                }
+            }
+
+            if (vector_size(hex_coords) >= 3) {
+                goto done;
+            }
+        }
+    }
+
+done:
+    vector_destroy(dfs_stack);
+
+    if (vector_size(hex_coords) < 3) {
+        vector_clear(hex_coords);
+    }
+    return vector_size(hex_coords);
 }
 
 size_t hex_find_one_bomb_cluster(Vector hex_coords) {
@@ -238,4 +327,22 @@ void hex_for_each(HexFn fn) {
             fn(hex_at(q, r));
         }
     }
+}
+
+Rectangle hex_bounding_box_of_coords(const HexCoord* coords, size_t num_coords) {
+    Rectangle r = {
+        .top_left = {LOGICAL_WINDOW_WIDTH, LOGICAL_WINDOW_HEIGHT},
+        .bottom_right = {0,0},
+    };
+    for (size_t i = 0; i < num_coords; i++) {
+        HexCoord c = coords[i];
+        const Hex* hex = hex_at(c.q, c.r);
+        r.top_left.x = MIN(r.top_left.x, hex->hex_point.x);
+        r.top_left.y = MIN(r.top_left.y, hex->hex_point.y);
+        r.bottom_right.x = MAX(r.bottom_right.x, hex->hex_point.x + HEX_WIDTH);
+        r.bottom_right.y = MAX(r.bottom_right.y, hex->hex_point.y + HEX_HEIGHT);
+    }
+    r.width = r.bottom_right.x - r.top_left.x;
+    r.height = r.bottom_right.y - r.top_left.y;
+    return r;
 }

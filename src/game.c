@@ -34,6 +34,11 @@ static bool board_has_any_matches(void) {
     return false;
 }
 
+static void hex_coord_print(const void* vector_item, char* buffer, size_t buffer_size) {
+    HexCoord coord = *(const HexCoord*)vector_item;
+    snprintf(buffer, buffer_size, "(q, r) = (%d, %d)", coord.q, coord.r);
+}
+
 static void flower_animation_print(const void* vector_item, char* buffer, size_t buffer_size) {
     const FlowerMatchAnimation* fma = (const FlowerMatchAnimation*)vector_item;
     snprintf(buffer, buffer_size,
@@ -337,6 +342,43 @@ bool handle_physics(void) {
     return hex_became_locked;
 }
 
+static void handle_simple_cluster(const HexCoord* hex_coords, size_t num_coords) {
+    assert(num_coords >= 3 && num_coords <= 5);
+
+    if (game->combos_remaining > 0) {
+        game->combos_remaining--;
+    }
+
+    for (size_t i = 0; i < num_coords; i++) {
+        HexCoord c = hex_coords[i];
+        Hex* hex = hex_at(c.q, c.r);
+        hex->is_matched = true;
+    }
+
+    // TODO - compute local score
+    uint32_t local_score = 100;
+
+    // TODO - start cluster match animation
+
+    Rectangle r = hex_bounding_box_of_coords(hex_coords, num_coords);
+    Point cluster_center = {
+        .x = r.top_left.x + r.width / 2,
+        .y = r.top_left.y + r.height / 2,
+    };
+
+    // Start local score animation
+    LocalScoreAnimation lsa = {
+        .in_progress = true,
+        .start_time = now_ms(),
+        .score = (uint32_t)local_score,
+        .alpha = 1.0f,
+        .start_point = cluster_center,
+        .current_point = cluster_center,
+    };
+    text_init(&lsa.text);
+    vector_push_back(game->local_score_animations, &lsa);
+}
+
 // Computes score, updates combos remaining, and marks hexes as matched.
 static void handle_flower(const HexCoord* hex_coords, size_t num_coords) {
     assert(num_coords == 7);
@@ -458,21 +500,36 @@ void game_update(void) {
 
     if (rotation_finished || hex_finished_falling) {
         // Flowers
-        Vector flowers = vector_create_with_allocator(
+        Vector flower = vector_create_with_allocator(
                 sizeof(HexCoord), bump_allocator_alloc, bump_allocator_free);
-        vector_reserve(flowers, 7);
+        vector_reserve(flower, 7);
         size_t iteration = 0;
         while (1) {
-            vector_clear(flowers);
-            size_t flower_size = hex_find_one_flower(flowers);
+            vector_clear(flower);
+            size_t flower_size = hex_find_one_flower(flower);
             if (flower_size == 0) {
                 break;
             }
-            handle_flower(vector_data_at(flowers, 0), vector_size(flowers));
+            handle_flower(vector_data_at(flower, 0), vector_size(flower));
             assert(iteration++ < 100);
         }
 
-        // TODO - check for simple cluster matches
+        // Simple clusters
+        Vector simple_cluster = vector_create_with_allocator(
+                sizeof(HexCoord), bump_allocator_alloc, bump_allocator_free);
+        vector_reserve(simple_cluster, 5);
+        iteration = 0;
+        while (1) {
+            vector_clear(simple_cluster);
+            size_t simple_cluster_size = hex_find_one_simple_cluster(simple_cluster);
+            if (simple_cluster_size == 0) {
+                break;
+            }
+            vector_print(simple_cluster, hex_coord_print);
+            handle_simple_cluster(vector_data_at(simple_cluster, 0), vector_size(simple_cluster));
+            assert(iteration++ < 100);
+        }
+
         // TODO - check for bomb diffusals
         // TODO - check for MMCs
         // TODO - trigger hexes to fall

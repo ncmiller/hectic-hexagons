@@ -158,6 +158,11 @@ size_t hex_find_one_bomb_cluster(Vector hex_coords);
 // To be considered, a hex must have is_matched == false.
 size_t hex_find_one_mmc_cluster(Vector hex_coords);
 
+bool hex_coord_is_valid(HexCoord coord);
+
+// Given several coordinates, find get the bounding box, in screen space
+Rectangle hex_bounding_box_of_coords(const HexCoord* coords, size_t num_coords);
+
 bool hex_is_basic(const Hex* hex);
 bool hex_is_multiplier(const Hex* hex);
 bool hex_is_starflower(const Hex* hex);

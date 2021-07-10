@@ -59,6 +59,8 @@ void text_draw(Text* text) {
         text->needs_rendering = false;
     }
 
+    // TODO - option to center the text
+
     if (text->texture) {
         SDL_Rect dest = {
             .x = text->point.x,

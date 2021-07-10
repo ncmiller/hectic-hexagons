@@ -8,26 +8,31 @@
 
 #define HEX_SOURCE_WIDTH 60
 #define HEX_SOURCE_HEIGHT 52
+#define DISPLAY_HEX_COORDS
 
 #if 0 // 1080p
 #define CURSOR_RADIUS 12
 #define FONT_SIZE 24
 #define LOCAL_SCORE_FONT_SIZE 20
+#define HEX_COORD_FONT_SIZE 12
 #else // 720p
 #define CURSOR_RADIUS 8
 #define FONT_SIZE 20
 #define LOCAL_SCORE_FONT_SIZE 18
+#define HEX_COORD_FONT_SIZE 12
 #endif
 
 typedef struct {
     SDL_Texture* hex_basic_texture;
     TTF_Font* font;
     TTF_Font* local_score_font;
+    TTF_Font* hex_coord_font;
 
     Text level_text;
     Text combos_text;
     Text score_text;
     Text fps_text;
+    Text hex_coord_text[HEX_NUM_COLUMNS][HEX_NUM_ROWS];
 } Graphics;
 
 static Graphics _graphics;
@@ -58,6 +63,8 @@ static bool load_all_media(void) {
     all_loaded &= (_graphics.font != NULL);
     _graphics.local_score_font = TTF_OpenFont("media/Caviar_Dreams_Bold.ttf", LOCAL_SCORE_FONT_SIZE);
     all_loaded &= (_graphics.local_score_font != NULL);
+    _graphics.hex_coord_font = TTF_OpenFont("media/Caviar_Dreams_Bold.ttf", HEX_COORD_FONT_SIZE);
+    all_loaded &= (_graphics.hex_coord_font != NULL);
 
     if (!all_loaded) {
         SDL_Log("Failed to load media. Exiting.");
@@ -117,6 +124,24 @@ bool graphics_init(void) {
     text_draw(fps_text);
     text_set_point(fps_text, LOGICAL_WINDOW_WIDTH - fps_text->width - 20, 20);
     text_draw(fps_text);
+
+#ifdef DISPLAY_HEX_COORDS
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            Text* coord_text = &_graphics.hex_coord_text[q][r];
+            text_init(coord_text);
+            text_set_font(coord_text, _graphics.hex_coord_font);
+            snprintf(text_buffer(coord_text), TEXT_MAX_LEN, "%d,%d", q, r);
+            const Hex* hex = hex_at(q, r);
+            text_set_point(
+                    coord_text,
+                    hex->hex_point.x + HEX_WIDTH / 2 - 10,
+                    hex->hex_point.y + HEX_HEIGHT / 2 - 8);
+            text_set_color(coord_text, 0, 0, 0, 0xFF);
+            text_draw(coord_text);
+        }
+    }
+#endif
 
     return true;
 }
@@ -288,6 +313,16 @@ void graphics_update(void) {
 
     snprintf(text_buffer(&_graphics.score_text), TEXT_MAX_LEN, "Score: %u", g_state.game.score);
     text_draw(&_graphics.score_text);
+
+#ifdef DISPLAY_HEX_COORDS
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            if (hex_coord_is_valid((HexCoord){q,r})) {
+                text_draw(&_graphics.hex_coord_text[q][r]);
+            }
+        }
+    }
+#endif
 
     Text* fps_text = &_graphics.fps_text;
     uint32_t frames = statistics_total_frames();
