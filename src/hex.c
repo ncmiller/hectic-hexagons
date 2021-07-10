@@ -124,7 +124,7 @@ HexType hex_random_type_with_mask(uint32_t mask) {
     return allowed_types[rand_allowed_type_index];
 }
 
-bool hex_has_cluster_match(int q, int r) {
+bool hex_has_cluster_match(int q, int r, HexCoord* n1, HexCoord* n2) {
     const Hex* query_hex = &g_state.hexes[q][r];
     HexNeighbors neighbors = {0};
     hex_neighbors(q, r, &neighbors, ALL_NEIGHBORS);
@@ -137,6 +137,12 @@ bool hex_has_cluster_match(int q, int r) {
         const Hex* hex1 = &g_state.hexes[c1.q][c1.r];
         const Hex* hex2 = &g_state.hexes[c2.q][c2.r];
         if ((hex1->type == query_hex->type) && (hex2->type == query_hex->type)) {
+            if (n1) {
+                *n1 = c1;
+            }
+            if (n2) {
+                *n2 = c2;
+            }
             return true;
         }
     }
@@ -194,47 +200,64 @@ size_t hex_find_one_flower(Vector hex_coords) {
     return 0;
 }
 
-// This could be done more efficiently. But at least it works :)
 size_t hex_find_one_simple_cluster(Vector hex_coords) {
-    bool to_visit[HEX_NUM_COLUMNS][HEX_NUM_ROWS] = {0};
+    bool in_cluster[HEX_NUM_COLUMNS][HEX_NUM_ROWS] = {0};
     Vector dfs_stack = vector_create_with_allocator(
             sizeof(HexCoord),
             bump_allocator_alloc,
             bump_allocator_free);
 
+    // Iterate over the entire board.
+    // Find the first trio cluster (all same type, none previously matched).
+    // DFS, starting with the trio, visit neighboring hexes that should be part of the cluster.
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
             if (hex_at(q, r)->is_matched) {
                 continue;
             }
 
-            // Iterative DFS
+            HexCoord n1, n2;
+            if (!hex_has_cluster_match(q, r, &n1, &n2)) {
+                continue;
+            }
+
+            if (hex_at(n1.q, n1.r)->is_matched || hex_at(n2.q, n2.r)->is_matched) {
+                continue;
+            }
+
             vector_clear(dfs_stack);
             vector_clear(hex_coords);
+
             HexCoord start = {q,r};
-            to_visit[q][r] = true;
-
+            in_cluster[q][r] = true;
             vector_push_back(dfs_stack, &start);
+
+            in_cluster[n1.q][n1.r] = true;
+            vector_push_back(dfs_stack, &n1);
+
+            in_cluster[n2.q][n2.r] = true;
+            vector_push_back(dfs_stack, &n2);
+
+            HexType target_type = hex_at(q, r)->type;
+
             while (vector_size(dfs_stack) > 0) {
-                HexCoord query = {0};
-                vector_pop_back(dfs_stack, &query);
-                // SDL_Log("Pop (%d,%d)", query.q, query.r);
+                HexCoord c = {0};
+                vector_pop_back(dfs_stack, &c);
+                // SDL_Log("Pop (%d,%d)", c.q, c.r);
+                vector_push_back(hex_coords, &c);
 
-                vector_push_back(hex_coords, &query);
-
-                HexType query_type = hex_at(q, r)->type;
-
-                // Add neighbors to dfs_stack if they meet all criteria:
-                //   1. Coordinate is valid
+                // Add neighbors to cluster if they meet all criteria:
+                //   1. Valid
                 //   2. Not matched
-                //   3. Not visited
-                //   3. Not already in dfs_stack
-                //   4. Type matches query type
-                //   5. Type matches prior neighbor or next neighbor type
+                //   3. Not already in cluster
+                //   4. Type matches
+                //   5. Prior or next neighbor type matches and in cluster
                 HexNeighbors neighbors = {0};
-                hex_neighbors(query.q, query.r, &neighbors, ALL_NEIGHBORS);
-                for (int i = 1; i < neighbors.num_neighbors; i++) {
-                    HexCoord c1 = neighbors.coords[i - 1];
+                hex_neighbors(c.q, c.r, &neighbors, ALL_NEIGHBORS);
+                for (int i = 0; i < neighbors.num_neighbors; i++) {
+                    HexCoord c1 = (i == 0 ?
+                            neighbors.coords[neighbors.num_neighbors - 1] :
+                            neighbors.coords[i - 1]);
                     HexCoord c2 = neighbors.coords[i];
                     HexCoord c3 = neighbors.coords[(i + 1) % neighbors.num_neighbors];
 
@@ -246,26 +269,26 @@ size_t hex_find_one_simple_cluster(Vector hex_coords) {
                     if (hex2->is_matched) {
                         continue;
                     }
-                    if (to_visit[c2.q][c2.r]) {
+                    if (in_cluster[c2.q][c2.r]) {
                         continue;
                     }
-                    if (hex2->type != query_type) {
-                        continue;
-                    }
-
-                    // Check prior neighbor type
-                    if (hex_coord_is_valid(c1) && hex_at(c1.q, c1.r)->type == query_type) {
-                        // SDL_Log("(%d,%d), Add (%d,%d)", query.q, query.r, c2.q, c2.r);
-                        vector_push_back(dfs_stack, &c2);
-                        to_visit[c2.q][c2.r] = true;
+                    if (hex2->type != target_type) {
                         continue;
                     }
 
-                    // Check next neighbor type
-                    if (hex_coord_is_valid(c3) && hex_at(c3.q, c3.r)->type == query_type) {
-                        // SDL_Log("(%d,%d), Add (%d,%d)", query.q, query.r, c2.q, c2.r);
+                    // Check prior neighbor
+                    if (hex_coord_is_valid(c1) && hex_at(c1.q, c1.r)->type == target_type && in_cluster[c1.q][c1.r]) {
+                        // SDL_Log("(%d,%d), Add (%d,%d)", c.q, c.r, c2.q, c2.r);
                         vector_push_back(dfs_stack, &c2);
-                        to_visit[c2.q][c2.r] = true;
+                        in_cluster[c2.q][c2.r] = true;
+                        continue;
+                    }
+
+                    // Check next neighbor
+                    if (hex_coord_is_valid(c3) && hex_at(c3.q, c3.r)->type == target_type && in_cluster[c3.q][c3.r]) {
+                        // SDL_Log("(%d,%d), Add (%d,%d)", c.q, c.r, c2.q, c2.r);
+                        vector_push_back(dfs_stack, &c2);
+                        in_cluster[c2.q][c2.r] = true;
                     }
                 }
             }

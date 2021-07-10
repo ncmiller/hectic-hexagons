@@ -126,8 +126,9 @@ HexType hex_random_type_with_mask(uint32_t mask);
 
 Hex* hex_at(int q, int r);
 
-// Returns true if the hex at (q,r) has a 3-, 4-, or 5-cluster match with neighbors.
-bool hex_has_cluster_match(int q, int r);
+// Returns true if the hex at (q,r) has a trio match.
+// If n1 and n2 are non-NULL and trio match found, populate with neighbor coords.
+bool hex_has_cluster_match(int q, int r, HexCoord* n1, HexCoord* n2);
 
 // Returns true if the hex at (q,r) has a flower match (all neighbors are the same type).
 bool hex_has_flower_match(int q, int r);

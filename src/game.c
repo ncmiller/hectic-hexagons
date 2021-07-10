@@ -23,7 +23,7 @@ static Game* game = &g_state.game;
 static bool board_has_any_matches(void) {
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
-            if (hex_has_cluster_match(q, r)) {
+            if (hex_has_cluster_match(q, r, NULL, NULL)) {
                 return true;
             }
             if (hex_has_flower_match(q, r)) {
@@ -560,7 +560,7 @@ bool game_init(void) {
         // Fix cluster matches by rerolling (q,r)
         for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
             for (int r = 0; r < HEX_NUM_ROWS; r++) {
-                if (hex_has_cluster_match(q, r)) {
+                if (hex_has_cluster_match(q, r, NULL, NULL)) {
                     g_state.hexes[q][r].type = hex_random_type();
                 }
             }
