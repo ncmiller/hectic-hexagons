@@ -355,8 +355,28 @@ static void handle_simple_cluster(const HexCoord* hex_coords, size_t num_coords)
         hex->is_matched = true;
     }
 
-    // TODO - compute local score
-    uint32_t local_score = 100;
+    // Compute score
+    //
+    // Basic:       (size - 2) * 5 * level
+    // Multiplier:  (size - 2) * 100 * level
+    // Starflower:  (size - 2) * 2500 * level
+    // Black Pearl: (size - 2) * 25000 * level
+    int score_multiplier = 0;
+    const Hex* hex = hex_at(hex_coords[0].q, hex_coords[0].r);
+    if (hex_is_basic(hex)) {
+        score_multiplier = 5;
+    } else if (hex_is_multiplier(hex)) {
+        score_multiplier = 100;
+    } else if (hex_is_starflower(hex)) {
+        score_multiplier = 2500;
+    } else if (hex_is_black_pearl(hex)) {
+        // TODO - set flag to end game
+        score_multiplier = 25000;
+    } else {
+        assert(false && "Unknown hex type");
+    }
+    int local_score = (num_coords - 2) * score_multiplier * game->level;
+    game->score += local_score;
 
     // TODO - start cluster match animation
 

@@ -125,6 +125,10 @@ HexType hex_random_type_with_mask(uint32_t mask) {
 }
 
 bool hex_has_cluster_match(int q, int r, HexCoord* n1, HexCoord* n2) {
+    if (!hex_coord_is_valid((HexCoord){q, r})) {
+        return false;
+    }
+
     const Hex* query_hex = &g_state.hexes[q][r];
     HexNeighbors neighbors = {0};
     hex_neighbors(q, r, &neighbors, ALL_NEIGHBORS);
