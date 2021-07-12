@@ -16,6 +16,7 @@
 #define FLOWER_MATCH_MAX_SCALE 1.7f
 #define LOCAL_SCORE_ANIMATION_TIME_MS 1200
 #define LOCAL_SCORE_ANIMATION_MAX_HEIGHT HEX_HEIGHT
+#define CLUSTER_MATCH_ANIMATION_TIME_MS 450
 
 // Convenience accessors to global state
 static Game* game = &g_state.game;
@@ -52,6 +53,11 @@ static void flower_animation_print(const void* vector_item, char* buffer, size_t
 static bool flower_animation_in_progress(const void* vector_item) {
     const FlowerMatchAnimation* fma = (const FlowerMatchAnimation*)vector_item;
     return !fma->in_progress;
+}
+
+static bool cluster_match_animation_in_progress(const void* vector_item) {
+    const ClusterMatchAnimation* cma = (const ClusterMatchAnimation*)vector_item;
+    return !cma->in_progress;
 }
 
 static bool local_score_animation_in_progress(const void* vector_item) {
@@ -112,6 +118,34 @@ static void handle_flower_match_animations(void) {
     // Erase completed animations
     // vector_print(game->flower_match_animations, flower_animation_print);
     vector_erase_if(game->flower_match_animations, flower_animation_in_progress);
+}
+
+static void handle_cluster_match_animations(void) {
+    for (size_t i = 0; i < vector_size(game->cluster_match_animations); i++) {
+        ClusterMatchAnimation* cma = (ClusterMatchAnimation*)
+            vector_data_at(game->cluster_match_animations, i);
+
+        const double animation_progress =
+            (double)(now_ms() - cma->start_time) /
+            (double)CLUSTER_MATCH_ANIMATION_TIME_MS;
+
+        Hex* hex = hex_at(cma->hex_coord.q, cma->hex_coord.r);
+        if (animation_progress > 1.0f) {
+            cma->in_progress = false;
+            hex->scale = 1.0f;
+            hex->is_cluster_match_animating = false;
+        } else {
+            double s0 = 1.0f;
+            double s1 = 0.0f;
+            double t = animation_progress;
+            double scale = (1.0f - t) * s0 + t * s1;
+            hex->scale = scale;
+            hex->is_cluster_match_animating = true;
+        }
+    }
+
+    // Erase completed animations
+    vector_erase_if(game->cluster_match_animations, cluster_match_animation_in_progress);
 }
 
 static void handle_local_score_animations(void) {
@@ -194,6 +228,7 @@ static void handle_input(void) {
 
     bool animation_in_progress =
         (vector_size(game->flower_match_animations) > 0) ||
+        (vector_size(game->cluster_match_animations) > 0) ||
         game->rotation_in_progress;
 
     if (animation_in_progress) {
@@ -378,7 +413,16 @@ static void handle_simple_cluster(const HexCoord* hex_coords, size_t num_coords)
     int local_score = (num_coords - 2) * score_multiplier * game->level;
     game->score += local_score;
 
-    // TODO - start cluster match animation
+    // Start cluster match animation for each hex in cluster
+    for (size_t i = 0; i < num_coords; i++) {
+        HexCoord c = hex_coords[i];
+        ClusterMatchAnimation cma = {
+            .in_progress = true,
+            .start_time = now_ms(),
+            .hex_coord = c,
+        };
+        vector_push_back(game->cluster_match_animations, &cma);
+    }
 
     Rectangle r = hex_bounding_box_of_coords(hex_coords, num_coords);
     Point cluster_center = {
@@ -516,6 +560,10 @@ void game_update(void) {
         handle_local_score_animations();
     }
 
+    if (vector_size(game->cluster_match_animations) > 0) {
+        handle_cluster_match_animations();
+    }
+
     bool hex_finished_falling = handle_physics();
 
     if (rotation_finished || hex_finished_falling) {
@@ -531,7 +579,6 @@ void game_update(void) {
                 break;
             }
             handle_flower(vector_data_at(flower, 0), vector_size(flower));
-            ASSERT(false);
             ASSERT(iteration++ < 100);
         }
 
@@ -604,9 +651,11 @@ bool game_init(void) {
 
     game->local_score_animations = vector_create(sizeof(LocalScoreAnimation));
     game->flower_match_animations = vector_create(sizeof(FlowerMatchAnimation));
+    game->cluster_match_animations = vector_create(sizeof(ClusterMatchAnimation));
 
     vector_reserve(game->local_score_animations, 10);
     vector_reserve(game->flower_match_animations, 10);
+    vector_reserve(game->cluster_match_animations, 40);
 
     return true;
 }

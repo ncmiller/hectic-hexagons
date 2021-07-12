@@ -242,8 +242,30 @@ void graphics_update(void) {
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
             Hex* hex = &g_state.hexes[q][r];
-            if (!hex->is_rotating && !hex->is_flower_fading) {
+            bool hex_is_animating =
+                hex->is_rotating ||
+                hex->is_flower_fading ||
+                hex->is_cluster_match_animating;
+            if (!hex_is_animating) {
                 draw_static_hex(hex);
+            }
+        }
+    }
+
+    // Hexes with cluster match animations
+    bool cluster_match_is_animating = (vector_size(g_state.game.cluster_match_animations) > 0);
+    if (cluster_match_is_animating) {
+        for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+            for (int r = 0; r < HEX_NUM_ROWS; r++) {
+                const Hex* hex = &g_state.hexes[q][r];
+                if (hex->is_cluster_match_animating) {
+                    const Hex* hex = hex_at(q, r);
+                    Point center = {
+                        .x = hex->hex_point.x + (HEX_WIDTH / 2),
+                        .y = hex->hex_point.y + (HEX_HEIGHT / 2),
+                    };
+                    draw_animated_hex(hex, center);
+                }
             }
         }
     }
@@ -285,7 +307,8 @@ void graphics_update(void) {
         }
     }
 
-    if (!flower_match_is_animating) {
+    bool is_animating = (flower_match_is_animating || cluster_match_is_animating);
+    if (!is_animating) {
         // Draw cursor
         SDL_Color darkorchid = { .r = 0x99, .g = 0x32, .b = 0xcc, .a = 0xff };
         SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 0xff };

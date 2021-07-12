@@ -104,6 +104,9 @@ typedef struct {
     // For flower fade animations
     bool is_flower_fading;
     HexCoord flower_center;
+
+    // For cluster match animations
+    bool is_cluster_match_animating;
 } Hex;
 
 // Get coordinate of specific neighbor of hex at (q,r)

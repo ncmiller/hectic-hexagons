@@ -27,6 +27,12 @@ typedef struct {
 } FlowerMatchAnimation;
 
 typedef struct {
+    bool in_progress;
+    uint64_t start_time;
+    HexCoord hex_coord;
+} ClusterMatchAnimation;
+
+typedef struct {
     uint32_t level;
     uint32_t combos_remaining;
     uint32_t score;
@@ -38,6 +44,7 @@ typedef struct {
 
     Vector flower_match_animations; // FlowerMatchAnimation
     Vector local_score_animations; // LocalScoreAnimation
+    Vector cluster_match_animations; // ClusterMatchAnimation
 } Game;
 
 bool game_init(void);
