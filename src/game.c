@@ -252,11 +252,16 @@ static void handle_input(void) {
     if (start_rotation && !game->rotation_in_progress) {
         game->rotation_in_progress = true;
         game->rotation_start_time = now_ms();
+        game->rotation_count = 0;
 
         // Determine if this is a starflower rotation
         HexType cursor_hex_type = g_state.hexes[cursor->hex_anchor.q][cursor->hex_anchor.r].type;
+
         bool is_starflower_rotation =
             (cursor->position == CURSOR_POS_ON) && (cursor_hex_type == HEX_TYPE_STARFLOWER);
+        bool is_blackflower_rotation =
+            (cursor->position == CURSOR_POS_ON) && (cursor_hex_type == HEX_TYPE_STARFLOWER);
+        game->is_trio_rotation = !(is_starflower_rotation || is_blackflower_rotation);
 
         if (rotate_cw) {
             game->degrees_to_rotate = (is_starflower_rotation ? 60.0f : 120.0f);
@@ -298,11 +303,14 @@ static bool handle_rotation(void) {
     cursor_neighbors(cursor, &neighbors);
 
     const double rotation_progress =
-        (double)(now_ms() - game->rotation_start_time) / (double)ROTATION_TIME_MS;
+        (double)((double)now_ms() - (double)game->rotation_start_time) / (double)ROTATION_TIME_MS;
+
+    // Rotation progress might be negative, if we are stalling between automatic trio rotations.
+    if (rotation_progress < 0.0f) {
+        return false;
+    }
 
     if (rotation_progress > 1.0f) {
-        game->rotation_in_progress = false;
-
         cursor_hex->is_rotating = false;
         cursor_hex->rotation_angle = 0.0f;
         cursor_hex->scale = 1.0f;
@@ -326,7 +334,16 @@ static bool handle_rotation(void) {
             hexes_to_rotate[2] = neighbors.coords[1];
             rotate_hexes(hexes_to_rotate, 3, is_rotate_clockwise);
         }
-        return true;
+
+        game->rotation_count++;
+        if (game->is_trio_rotation && (game->rotation_count < 3) && !board_has_any_matches()) {
+            // Start another rotation in 100 ms
+            game->rotation_start_time = now_ms() + 100;
+            return false;
+        } else {
+            game->rotation_in_progress = false;
+            return true;
+        }
     } else {
         const double angle = rotation_progress * game->degrees_to_rotate;
         double scale = 1.0f;

@@ -39,8 +39,10 @@ typedef struct {
 
     // Rotation animation
     bool rotation_in_progress;
+    bool is_trio_rotation;
     double degrees_to_rotate;
     uint64_t rotation_start_time;
+    uint32_t rotation_count;
 
     Vector flower_match_animations; // FlowerMatchAnimation
     Vector local_score_animations; // LocalScoreAnimation
