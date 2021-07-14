@@ -24,13 +24,13 @@ int main(int argc, char* argv[]) {
 
     g_state.running = true;
     while (g_state.running) {
-        uint64_t start = now_ms();
+        uint64_t start = now_ns();
         input_update();
         game_update();
         graphics_update();
-        uint64_t update_diff = now_ms() - start;
+        uint64_t update_diff = now_ns() - start;
         graphics_flip();
-        uint64_t render_diff = now_ms() - start;
+        uint64_t render_diff = now_ns() - start;
 
         statistics_update(update_diff, render_diff);
         bump_allocator_free_all();

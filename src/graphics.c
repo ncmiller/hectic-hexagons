@@ -31,6 +31,8 @@ typedef struct {
     Text combos_text;
     Text score_text;
     Text fps_text;
+    Text update_text;
+    Text render_text;
     Text hex_coord_text[HEX_NUM_COLUMNS][HEX_NUM_ROWS];
 } Graphics;
 
@@ -123,6 +125,28 @@ bool graphics_init(void) {
     text_draw(fps_text);
     text_set_point(fps_text, LOGICAL_WINDOW_WIDTH - fps_text->width - 20, 20);
     text_draw(fps_text);
+
+    Text* update_text = &_graphics.update_text;
+    text_init(update_text);
+    text_set_font(update_text, _graphics.font);
+    snprintf(text_buffer(update_text), TEXT_MAX_LEN, "Upd: %3.1f", 100.0f);
+    text_set_point(update_text, LOGICAL_WINDOW_WIDTH, 40);
+    text_set_color(update_text, 0xFF, 0xFF, 0xFF, 0xFF);
+    text_draw(update_text);
+    text_set_point(update_text, LOGICAL_WINDOW_WIDTH - update_text->width - 20, 40);
+    text_draw(update_text);
+
+#if 0
+    Text* render_text = &_graphics.render_text;
+    text_init(render_text);
+    text_set_font(render_text, _graphics.font);
+    snprintf(text_buffer(render_text), TEXT_MAX_LEN, "Rnd: %3.1f", 100.0f);
+    text_set_point(render_text, LOGICAL_WINDOW_WIDTH, 60);
+    text_set_color(render_text, 0xFF, 0xFF, 0xFF, 0xFF);
+    text_draw(render_text);
+    text_set_point(render_text, LOGICAL_WINDOW_WIDTH - render_text->width - 20, 60);
+    text_draw(render_text);
+#endif
 
 #ifdef DISPLAY_HEX_COORDS
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
@@ -346,12 +370,17 @@ void graphics_update(void) {
     }
 #endif
 
+    // Statistics rendering
     Text* fps_text = &_graphics.fps_text;
-    uint32_t frames = statistics_total_frames();
+    Text* update_text = &_graphics.update_text;
+
+    uint32_t frames = statistics_get()->total_frames;
     if (frames > 0 && frames % 60 == 0) {
         snprintf(text_buffer(fps_text), TEXT_MAX_LEN, "FPS: %3.1f", statistics_fps());
+        snprintf(text_buffer(update_text), TEXT_MAX_LEN, "Upd: %3.1f", statistics_get()->update_ave_ns / 1000000.0f);
     }
     text_draw(fps_text);
+    text_draw(update_text);
 }
 
 void graphics_flip(void) {
