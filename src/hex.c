@@ -21,7 +21,7 @@ bool hex_coord_is_valid(HexCoord coord) {
 }
 
 // Compute screen space point of upper-left corner of hex
-static Point transform_hex_to_screen(int q, int r) {
+Point transform_hex_to_screen(int q, int r) {
     Point p;
     bool q_even = ((q & 1) == 0);
     p.x = g_constants.board.x + (int)round(q * 0.75f * g_constants.hex_w);

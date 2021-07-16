@@ -85,9 +85,10 @@ typedef struct {
 typedef struct {
     bool is_valid;
     HexType type;
-    Point hex_point; // TODO - remove, precompute
+    Point hex_point;
 
     // True if the hex is combo'd in some way on the current frame.
+    // Cleared at the end of each frame.
     bool is_matched;
 
     // For general animation
@@ -98,8 +99,11 @@ typedef struct {
     bool is_rotating;
     double rotation_angle;
 
-    // For gravity physics animations
+    // For gravity
     bool is_falling;
+    uint64_t fall_start_time;
+    double velocity;
+    double falling_y_pos;
 
     // For flower fade animations
     bool is_flower_fading;
@@ -179,3 +183,5 @@ typedef void (*HexFn)(Hex*);
 
 // Calls fn on every hex in g_state.hexes.
 void hex_for_each(HexFn fn);
+
+Point transform_hex_to_screen(int q, int r);

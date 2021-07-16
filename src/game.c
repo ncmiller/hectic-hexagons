@@ -17,6 +17,7 @@
 #define LOCAL_SCORE_ANIMATION_TIME_MS 1200
 #define LOCAL_SCORE_ANIMATION_MAX_HEIGHT HEX_HEIGHT
 #define CLUSTER_MATCH_ANIMATION_TIME_MS 450
+#define HEX_GRAVITY 10.0f
 
 // Convenience accessors to global state
 static Game* game = &g_state.game;
@@ -231,7 +232,7 @@ static void handle_input(void) {
         (vector_size(game->cluster_match_animations) > 0) ||
         game->rotation_in_progress;
 
-    if (animation_in_progress) {
+    if (animation_in_progress || game->hexes_are_falling) {
         return;
     }
 
@@ -371,27 +372,6 @@ static bool handle_rotation(void) {
         }
         return false;
     }
-}
-
-// Returns true if any hexes became newly locked (were falling, but no longer falling)
-bool handle_physics(void) {
-    bool hex_became_locked = false;
-    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
-        for (int r = 0; r < HEX_NUM_ROWS; r++) {
-            Hex* hex = hex_at(q, r);
-            if (hex->is_falling) {
-                // TODO - update falling animation, detect collisions
-                bool collided = false;
-                if (collided) {
-                    // TODO - set final position
-                    hex->is_falling = false;
-                    hex_became_locked = true;
-                }
-            }
-        }
-    }
-
-    return hex_became_locked;
 }
 
 static void handle_simple_cluster(const HexCoord* hex_coords, size_t num_coords) {
@@ -548,6 +528,38 @@ static void handle_flower(const HexCoord* hex_coords, size_t num_coords) {
     vector_push_back(game->local_score_animations, &lsa);
 }
 
+static bool handle_gravity(void) {
+    // Assume false, until proven otherwise in the loop below
+    bool hex_finished_falling = false;
+    game->hexes_are_falling = false;
+
+    uint64_t now = now_ms();
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        // From bottom of column to top
+        for (int r = HEX_NUM_ROWS - 1; r >= 0; r--) {
+            Hex* hex = hex_at(q, r);
+            if (!hex->is_falling) {
+                continue;
+            }
+
+            game->hexes_are_falling = true;
+            if (hex->fall_start_time <= now) {
+                // Update velocity and y position
+                hex->velocity += HEX_GRAVITY;
+                // TODO - Maybe separate gravity values for start-of-game and in-game.
+                hex->falling_y_pos += hex->velocity;
+
+                // Check to see if we're done falling
+                if (hex->falling_y_pos >= (double)hex->hex_point.y) {
+                    hex->is_falling = false;
+                    hex_finished_falling = true;
+                }
+            }
+        }
+    }
+    return hex_finished_falling;
+}
+
 // The general plan for each game update is:
 //
 //  1. Get user input, possibly starting a rotation.
@@ -581,7 +593,10 @@ void game_update(void) {
         handle_cluster_match_animations();
     }
 
-    bool hex_finished_falling = handle_physics();
+    bool hex_finished_falling = false;
+    if (game->hexes_are_falling) {
+        hex_finished_falling = handle_gravity();
+    }
 
     if (rotation_finished || hex_finished_falling) {
         // Match flowers
@@ -622,6 +637,7 @@ void game_update(void) {
 
         hex_for_each(hex_clear_is_matched);
     }
+
 }
 
 bool game_init(void) {
@@ -661,8 +677,25 @@ bool game_init(void) {
         }
     }
 
+    // Trigger hexes to fall from above board column by column, left-to-right.
+    uint64_t now = now_ms();
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+    // for (int q = 0; q < 1; q++) {
+        uint64_t column_start_time = now + 500 + q * 350;
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            Hex* hex = hex_at(q, r);
+            if (hex->is_valid) {
+                hex->is_falling = true;
+                hex->velocity = 0.0f;
+                hex->fall_start_time = column_start_time + (HEX_NUM_ROWS - r - 1) * 100;
+                hex->falling_y_pos = transform_hex_to_screen(q, -4).y;
+            }
+        }
+    }
+    game->hexes_are_falling = true;
+
     // For testing - load a specific board
-    test_boards_load(g_test_board_six_black_pearls);
+    // test_boards_load(g_test_board_six_black_pearls);
 
     cursor_init(&g_state.cursor);
 

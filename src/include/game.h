@@ -47,6 +47,8 @@ typedef struct {
     Vector flower_match_animations; // FlowerMatchAnimation
     Vector local_score_animations; // LocalScoreAnimation
     Vector cluster_match_animations; // ClusterMatchAnimation
+
+    bool hexes_are_falling;
 } Game;
 
 bool game_init(void);

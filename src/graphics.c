@@ -225,6 +225,30 @@ void draw_animated_hex(const Hex* hex, Point animation_center) {
     SDL_SetTextureAlphaMod(_graphics.hex_basic_texture, 255);
 }
 
+void draw_falling_hex(const Hex* hex) {
+    if (!hex->is_valid) {
+        return;
+    }
+
+    SDL_Rect src = {
+        .x = hex->type * HEX_SOURCE_WIDTH,
+        .y = 0,
+        .w = HEX_SOURCE_WIDTH,
+        .h = HEX_SOURCE_HEIGHT,
+    };
+
+    SDL_Rect dest = {
+        .x = hex->hex_point.x,
+        .y = hex->falling_y_pos,
+        .w = HEX_WIDTH,
+        .h = HEX_HEIGHT,
+    };
+
+    if (0 != SDL_RenderCopy(window_renderer(), _graphics.hex_basic_texture, &src, &dest)) {
+        SDL_Log("SDL_RenderCopy error %s", SDL_GetError());
+    }
+}
+
 void draw_static_hex(const Hex* hex) {
     if (!hex->is_valid) {
         return;
@@ -266,11 +290,12 @@ void graphics_update(void) {
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
             Hex* hex = &g_state.hexes[q][r];
-            bool hex_is_animating =
+            bool hex_is_moving =
                 hex->is_rotating ||
                 hex->is_flower_fading ||
-                hex->is_cluster_match_animating;
-            if (!hex_is_animating) {
+                hex->is_cluster_match_animating ||
+                hex->is_falling;
+            if (!hex_is_moving) {
                 draw_static_hex(hex);
             }
         }
@@ -331,8 +356,19 @@ void graphics_update(void) {
         }
     }
 
-    bool is_animating = (flower_match_is_animating || cluster_match_is_animating);
-    if (!is_animating) {
+    // Falling hexes
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            const Hex* hex = &g_state.hexes[q][r];
+            if (hex->is_falling) {
+                draw_falling_hex(hex);
+            }
+        }
+    }
+
+    bool hide_cursor =
+         (flower_match_is_animating || cluster_match_is_animating || g_state.game.hexes_are_falling);
+    if (!hide_cursor) {
         // Draw cursor
         SDL_Color darkorchid = { .r = 0x99, .g = 0x32, .b = 0xcc, .a = 0xff };
         SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 0xff };
