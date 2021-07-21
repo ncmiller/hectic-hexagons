@@ -16,8 +16,9 @@
 #define FLOWER_MATCH_MAX_SCALE 1.7f
 #define LOCAL_SCORE_ANIMATION_TIME_MS 1200
 #define LOCAL_SCORE_ANIMATION_MAX_HEIGHT HEX_HEIGHT
-#define CLUSTER_MATCH_ANIMATION_TIME_MS 450
-#define HEX_GRAVITY 10.0f
+#define CLUSTER_MATCH_ANIMATION_TIME_MS 500
+#define GRAVITY_INITIAL 10.0f
+#define GRAVITY_NORMAL 1.0f
 
 // Convenience accessors to global state
 static Game* game = &g_state.game;
@@ -66,7 +67,8 @@ static bool local_score_animation_in_progress(const void* vector_item) {
     return !lsa->in_progress;
 }
 
-static void handle_flower_match_animations(void) {
+static bool handle_flower_match_animations(void) {
+    bool finished_an_animation = false;
     for (size_t i = 0; i < vector_size(game->flower_match_animations); i++) {
         FlowerMatchAnimation* fma = (FlowerMatchAnimation*)
             vector_data_at(game->flower_match_animations, i);
@@ -87,6 +89,7 @@ static void handle_flower_match_animations(void) {
                 hex->alpha = 1.0f;
                 hex->scale = 1.0f;
             }
+            finished_an_animation = true;
         } else {
             double alpha = 0.0f;
             double scale = 0.0f;
@@ -119,9 +122,12 @@ static void handle_flower_match_animations(void) {
     // Erase completed animations
     // vector_print(game->flower_match_animations, flower_animation_print);
     vector_erase_if(game->flower_match_animations, flower_animation_in_progress);
+    return finished_an_animation;
 }
 
-static void handle_cluster_match_animations(void) {
+static bool handle_cluster_match_animations(void) {
+    bool finished_an_animation = false;
+
     for (size_t i = 0; i < vector_size(game->cluster_match_animations); i++) {
         ClusterMatchAnimation* cma = (ClusterMatchAnimation*)
             vector_data_at(game->cluster_match_animations, i);
@@ -135,6 +141,7 @@ static void handle_cluster_match_animations(void) {
             cma->in_progress = false;
             hex->scale = 1.0f;
             hex->is_cluster_match_animating = false;
+            finished_an_animation = true;
         } else {
             double s0 = 1.0f;
             double s1 = 0.0f;
@@ -147,6 +154,7 @@ static void handle_cluster_match_animations(void) {
 
     // Erase completed animations
     vector_erase_if(game->cluster_match_animations, cluster_match_animation_in_progress);
+    return finished_an_animation;
 }
 
 static void handle_local_score_animations(void) {
@@ -545,7 +553,7 @@ static bool handle_gravity(void) {
             game->hexes_are_falling = true;
             if (hex->fall_start_time <= now) {
                 // Update velocity and y position
-                hex->velocity += HEX_GRAVITY;
+                hex->velocity += game->gravity;
                 // TODO - Maybe separate gravity values for start-of-game and in-game.
                 hex->falling_y_pos += hex->velocity;
 
@@ -553,11 +561,74 @@ static bool handle_gravity(void) {
                 if (hex->falling_y_pos >= (double)hex->hex_point.y) {
                     hex->is_falling = false;
                     hex_finished_falling = true;
+                    // SDL_Log("(%d,%d) finished falling", q, r);
                 }
             }
         }
     }
     return hex_finished_falling;
+}
+
+static void handle_matched_hexes(void) {
+    Vector matched_hexes = vector_create_with_allocator(
+            sizeof(Hex), bump_allocator_alloc, bump_allocator_free);
+    vector_reserve(matched_hexes, HEX_NUM_ROWS);
+
+    uint64_t now = now_ms();
+
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        vector_clear(matched_hexes);
+        bool fall_triggered = false;
+        uint64_t column_start_time = now + 150;
+        for (int r = HEX_NUM_ROWS - 1; r >= 0; r--) {
+            Hex* hex = hex_at(q, r);
+            bool hex_is_animating = hex->is_flower_fading || hex->is_cluster_match_animating || hex->is_falling;
+            if (hex_is_animating) {
+                continue;
+            }
+
+            if (hex->is_matched) {
+                // SDL_Log("(%d,%d) is matched", q, r);
+                hex->is_matched = false;
+                fall_triggered = true;
+                game->hexes_are_falling = true;
+                vector_push_back(matched_hexes, hex);
+            } else if (fall_triggered) {
+                // Move hex down a row for each matched hex
+                const Hex* src_hex = hex_at(q, r);
+                Hex* dest_hex = hex_at(q, r + (int)vector_size(matched_hexes));
+                // SDL_Log("Move (%d,%d) down by %d", q, r, (int)vector_size(matched_hexes));
+
+                // Copy src to dest, but preserve the original hex point and type
+                Point dest_hex_point = dest_hex->hex_point;
+                *dest_hex = *src_hex;
+                dest_hex->hex_point = dest_hex_point;
+
+                // Trigger the hex to start falling
+                dest_hex->is_falling = true;
+                dest_hex->fall_start_time = now;
+                dest_hex->velocity = 0.0f;
+                dest_hex->falling_y_pos = src_hex->hex_point.y;
+
+                // SDL_Log("Printing hex (%d,%d)", q, r + (int)vector_size(matched_hexes));
+                // hex_print(dest_hex);
+            }
+        }
+
+        // Respawn matched hexes, falling from above
+        for (int matched = 0; matched < vector_size(matched_hexes); matched++) {
+            // SDL_Log("Respawn at (%d,%d)", q, matched);
+            hex_spawn(q, matched);
+            Hex* hex = hex_at(q, matched);
+            hex->is_falling = true;
+            hex->fall_start_time = column_start_time + 250 * (vector_size(matched_hexes) - matched);
+            hex->velocity = 0.0f;
+            hex->falling_y_pos = transform_hex_to_screen(q, -4).y;
+            // hex_print(hex);
+        }
+    }
+
+    vector_destroy(matched_hexes);
 }
 
 // The general plan for each game update is:
@@ -581,21 +652,25 @@ void game_update(void) {
         rotation_finished = handle_rotation();
     }
 
+    bool flower_animation_completed = false;
     if (vector_size(game->flower_match_animations) > 0) {
-        handle_flower_match_animations();
+        flower_animation_completed = handle_flower_match_animations();
     }
 
     if (vector_size(game->local_score_animations) > 0) {
         handle_local_score_animations();
     }
 
+    bool cluster_animation_completed = false;
     if (vector_size(game->cluster_match_animations) > 0) {
-        handle_cluster_match_animations();
+        cluster_animation_completed = handle_cluster_match_animations();
     }
 
     bool hex_finished_falling = false;
     if (game->hexes_are_falling) {
         hex_finished_falling = handle_gravity();
+    } else {
+        game->gravity = GRAVITY_NORMAL;
     }
 
     if (rotation_finished || hex_finished_falling) {
@@ -625,27 +700,29 @@ void game_update(void) {
             if (simple_cluster_size == 0) {
                 break;
             }
-            vector_print(simple_cluster, hex_coord_print);
+            // vector_print(simple_cluster, hex_coord_print);
             handle_simple_cluster(vector_data_at(simple_cluster, 0), vector_size(simple_cluster));
             ASSERT(iteration++ < 100);
         }
 
         // TODO - Match bomb cluster
         // TODO - Match MMCs
-        // TODO - trigger hexes to fall
-        // TODO - respawn cleared hexes
-
-        hex_for_each(hex_clear_is_matched);
     }
 
+    bool match_animation_completed = flower_animation_completed || cluster_animation_completed;
+    if (match_animation_completed) {
+        handle_matched_hexes();
+    }
 }
 
 bool game_init(void) {
-    srand(now_ms());
+    // srand(now_ms());
+    srand(0);
 
     game->level = 1;
     game->combos_remaining = 50;
     game->score = 0;
+    game->gravity = GRAVITY_INITIAL;
 
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
@@ -680,7 +757,6 @@ bool game_init(void) {
     // Trigger hexes to fall from above board column by column, left-to-right.
     uint64_t now = now_ms();
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
-    // for (int q = 0; q < 1; q++) {
         uint64_t column_start_time = now + 500 + q * 350;
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
             Hex* hex = hex_at(q, r);

@@ -183,7 +183,9 @@ bool hex_has_flower_match(int q, int r) {
 size_t hex_find_one_flower(Vector hex_coords) {
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
-            if (hex_at(q, r)->is_matched) {
+            const Hex* hex = hex_at(q, r);
+            bool hex_is_animating = hex->is_flower_fading || hex->is_cluster_match_animating || hex->is_falling;
+            if (hex->is_matched || hex_is_animating) {
                 continue;
             }
 
@@ -216,7 +218,9 @@ size_t hex_find_one_simple_cluster(Vector hex_coords) {
     // DFS, starting with the trio, visit neighboring hexes that should be part of the cluster.
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
-            if (hex_at(q, r)->is_matched) {
+            const Hex* hex = hex_at(q, r);
+            bool hex_is_animating = hex->is_flower_fading || hex->is_cluster_match_animating || hex->is_falling;
+            if (hex->is_matched || hex_is_animating) {
                 continue;
             }
 
@@ -372,4 +376,22 @@ Rectangle hex_bounding_box_of_coords(const HexCoord* coords, size_t num_coords) 
     r.width = r.bottom_right.x - r.top_left.x;
     r.height = r.bottom_right.y - r.top_left.y;
     return r;
+}
+
+void hex_print(const Hex* hex) {
+    SDL_Log("        is_valid: %d", hex->is_valid);
+    SDL_Log("            type: %d", hex->type);
+    SDL_Log("       hex_point: (%d,%d)", hex->hex_point.x, hex->hex_point.y);
+    SDL_Log("      is_matched: %d", hex->is_matched);
+    SDL_Log("           scale: %f", hex->scale);
+    SDL_Log("           alpha: %f", hex->alpha);
+    SDL_Log("     is_rotating: %d", hex->is_rotating);
+    SDL_Log("       rot_angle: %f", hex->rotation_angle);
+    SDL_Log("      is_falling: %d", hex->is_falling);
+    SDL_Log("      fall_start: %llu", hex->fall_start_time);
+    SDL_Log("        velocity: %f", hex->velocity);
+    SDL_Log("      fall_y_pos: %f", hex->falling_y_pos);
+    SDL_Log("  is_flower_fade: %d", hex->is_flower_fading);
+    SDL_Log("   flower_center: (%d,%d)", hex->flower_center.q, hex->flower_center.r);
+    SDL_Log("   is_match_anim: %d", hex->is_cluster_match_animating);
 }

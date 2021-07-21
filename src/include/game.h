@@ -36,6 +36,7 @@ typedef struct {
     uint32_t level;
     uint32_t combos_remaining;
     uint32_t score;
+    double gravity;
 
     // Rotation animation
     bool rotation_in_progress;

@@ -184,4 +184,6 @@ typedef void (*HexFn)(Hex*);
 // Calls fn on every hex in g_state.hexes.
 void hex_for_each(HexFn fn);
 
+void hex_print(const Hex* hex);
+
 Point transform_hex_to_screen(int q, int r);
