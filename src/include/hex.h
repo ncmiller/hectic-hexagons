@@ -36,6 +36,7 @@
 static const uint32_t LEVEL_HEX_TYPE_MASK[MAX_NUM_LEVELS + 1] = {
     [0] = 0x00, // invalid, not a level
     [1] = 0x37, // level 1, no magenta
+    // [1] = 0x03, // Stress test, 2 colors only
     [2] = 0x37, // level 2, add multipliers
     [3] = 0x37, // level 3, add bombs
     [4] = 0x3F, // level 4, add magenta
@@ -185,5 +186,5 @@ typedef void (*HexFn)(Hex*);
 void hex_for_each(HexFn fn);
 
 void hex_print(const Hex* hex);
-
 Point transform_hex_to_screen(int q, int r);
+bool hex_is_matchable(const Hex* hex);

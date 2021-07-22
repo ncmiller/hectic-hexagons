@@ -579,21 +579,16 @@ static void handle_matched_hexes(void) {
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         vector_clear(matched_hexes);
         bool fall_triggered = false;
-        uint64_t column_start_time = now + 150;
+        uint64_t column_start_time = now;
         for (int r = HEX_NUM_ROWS - 1; r >= 0; r--) {
             Hex* hex = hex_at(q, r);
-            bool hex_is_animating = hex->is_flower_fading || hex->is_cluster_match_animating || hex->is_falling;
-            if (hex_is_animating) {
-                continue;
-            }
-
             if (hex->is_matched) {
                 // SDL_Log("(%d,%d) is matched", q, r);
                 hex->is_matched = false;
                 fall_triggered = true;
                 game->hexes_are_falling = true;
                 vector_push_back(matched_hexes, hex);
-            } else if (fall_triggered) {
+            } else if (fall_triggered && !hex->is_falling) {
                 // Move hex down a row for each matched hex
                 const Hex* src_hex = hex_at(q, r);
                 Hex* dest_hex = hex_at(q, r + (int)vector_size(matched_hexes));
@@ -716,8 +711,7 @@ void game_update(void) {
 }
 
 bool game_init(void) {
-    // srand(now_ms());
-    srand(0);
+    srand(now_ms());
 
     game->level = 1;
     game->combos_remaining = 50;

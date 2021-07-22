@@ -183,19 +183,17 @@ bool hex_has_flower_match(int q, int r) {
 size_t hex_find_one_flower(Vector hex_coords) {
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
-            const Hex* hex = hex_at(q, r);
-            bool hex_is_animating = hex->is_flower_fading || hex->is_cluster_match_animating || hex->is_falling;
-            if (hex->is_matched || hex_is_animating) {
+            if (!hex_is_matchable(hex_at(q, r))) {
                 continue;
             }
 
             if (hex_has_flower_match(q, r)) {
-                HexCoord c = (HexCoord){ .q = q, .r = r };
-                vector_push_back(hex_coords, &c);
-
                 HexNeighbors neighbors = {0};
                 hex_neighbors(q, r, &neighbors, ALL_NEIGHBORS);
                 ASSERT(neighbors.num_neighbors == 6);
+
+                HexCoord c = (HexCoord){ .q = q, .r = r };
+                vector_push_back(hex_coords, &c);
                 for (int i = 0; i < 6; i++) {
                     vector_push_back(hex_coords, &neighbors.coords[i]);
                 }
@@ -218,9 +216,7 @@ size_t hex_find_one_simple_cluster(Vector hex_coords) {
     // DFS, starting with the trio, visit neighboring hexes that should be part of the cluster.
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
-            const Hex* hex = hex_at(q, r);
-            bool hex_is_animating = hex->is_flower_fading || hex->is_cluster_match_animating || hex->is_falling;
-            if (hex->is_matched || hex_is_animating) {
+            if (!hex_is_matchable(hex_at(q, r))) {
                 continue;
             }
 
@@ -229,7 +225,7 @@ size_t hex_find_one_simple_cluster(Vector hex_coords) {
                 continue;
             }
 
-            if (hex_at(n1.q, n1.r)->is_matched || hex_at(n2.q, n2.r)->is_matched) {
+            if (!hex_is_matchable(hex_at(n1.q, n1.r)) || !hex_is_matchable(hex_at(n2.q, n2.r))) {
                 continue;
             }
 
@@ -256,7 +252,7 @@ size_t hex_find_one_simple_cluster(Vector hex_coords) {
 
                 // Add neighbors to cluster if they meet all criteria:
                 //   1. Valid
-                //   2. Not matched
+                //   2. Is matchable (not moving, not already matched)
                 //   3. Not already in cluster
                 //   4. Type matches
                 //   5. Prior or next neighbor type matches and in cluster
@@ -274,7 +270,7 @@ size_t hex_find_one_simple_cluster(Vector hex_coords) {
                         continue;
                     }
                     const Hex* hex2 = hex_at(c2.q, c2.r);
-                    if (hex2->is_matched) {
+                    if (!hex_is_matchable(hex2)) {
                         continue;
                     }
                     if (in_cluster[c2.q][c2.r]) {
@@ -394,4 +390,14 @@ void hex_print(const Hex* hex) {
     SDL_Log("  is_flower_fade: %d", hex->is_flower_fading);
     SDL_Log("   flower_center: (%d,%d)", hex->flower_center.q, hex->flower_center.r);
     SDL_Log("   is_match_anim: %d", hex->is_cluster_match_animating);
+}
+
+bool hex_is_matchable(const Hex* hex) {
+    bool is_moving =
+        hex->is_falling ||
+        hex->is_rotating ||
+        hex->is_flower_fading ||
+        hex->is_cluster_match_animating;
+
+    return (!hex->is_matched && !is_moving);
 }
