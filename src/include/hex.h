@@ -76,6 +76,9 @@ typedef struct {
     // Cleared at the end of each frame.
     bool is_matched;
 
+    // True, if is_matched and the hex should be respawned up top
+    bool respawn;
+
     // For general animation
     double scale;
     double alpha; // range [0.0, 1.0]

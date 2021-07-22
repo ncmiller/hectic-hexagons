@@ -394,6 +394,7 @@ static void handle_simple_cluster(const HexCoord* hex_coords, size_t num_coords)
         HexCoord c = hex_coords[i];
         Hex* hex = hex_at(c.q, c.r);
         hex->is_matched = true;
+        hex->respawn = true;
     }
 
     // Compute score
@@ -462,6 +463,7 @@ static void handle_flower(const HexCoord* hex_coords, size_t num_coords) {
     bool black_pearl_center = hex_is_black_pearl(center_hex);
 
     center_hex->is_matched = true;
+    center_hex->respawn = false;
 
     size_t num_neighbor_multipliers = 0;
     bool all_neighbors_starflower = true;
@@ -478,6 +480,7 @@ static void handle_flower(const HexCoord* hex_coords, size_t num_coords) {
         }
 
         n_hex->is_matched = true;
+        n_hex->respawn = true;
     }
 
     if (all_neighbors_starflower) {
@@ -571,60 +574,68 @@ static bool handle_gravity(void) {
 }
 
 static void handle_matched_hexes(void) {
-    Vector matched_hexes = vector_create_with_allocator(
+    Vector respawn_hexes = vector_create_with_allocator(
             sizeof(Hex), bump_allocator_alloc, bump_allocator_free);
-    vector_reserve(matched_hexes, HEX_NUM_ROWS);
+    vector_reserve(respawn_hexes, HEX_NUM_ROWS);
 
     uint32_t now = g_state.frame_count;
 
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
-        vector_clear(matched_hexes);
+        vector_clear(respawn_hexes);
         bool fall_triggered = false;
         uint64_t column_start_time = now;
         for (int r = HEX_NUM_ROWS - 1; r >= 0; r--) {
             Hex* hex = hex_at(q, r);
-            if (hex->is_matched) {
-                // SDL_Log("(%d,%d) is matched", q, r);
-                hex->is_matched = false;
+            if (hex->is_matched && hex->respawn) {
                 fall_triggered = true;
                 game->hexes_are_falling = true;
-                vector_push_back(matched_hexes, hex);
-            } else if (fall_triggered && !hex->is_falling) {
-                // Move hex down a row for each matched hex
+                vector_push_back(respawn_hexes, hex);
+            } else if (fall_triggered || (hex->is_matched && !hex->respawn)) {
+                // Move hex down a row for each respawned hex
                 const Hex* src_hex = hex_at(q, r);
-                Hex* dest_hex = hex_at(q, r + (int)vector_size(matched_hexes));
-                // SDL_Log("Move (%d,%d) down by %d", q, r, (int)vector_size(matched_hexes));
+                Hex* dest_hex = hex_at(q, r + (int)vector_size(respawn_hexes));
+                // SDL_Log("Move (%d,%d) down by %d", q, r, (int)vector_size(respawn_hexes));
 
                 // Copy src to dest, but preserve the original hex point and type
-                Point dest_hex_point = dest_hex->hex_point;
+                Hex orig_dest_hex = *dest_hex;
                 *dest_hex = *src_hex;
-                dest_hex->hex_point = dest_hex_point;
+
+                dest_hex->hex_point = orig_dest_hex.hex_point;
 
                 // Trigger the hex to start falling
                 dest_hex->is_falling = true;
-                dest_hex->fall_start_time = now;
-                dest_hex->velocity = 0.0f;
                 dest_hex->falling_y_pos = src_hex->hex_point.y;
 
-                // SDL_Log("Printing hex (%d,%d)", q, r + (int)vector_size(matched_hexes));
+                if (orig_dest_hex.is_falling) {
+                    dest_hex->fall_start_time = orig_dest_hex.fall_start_time;
+                    dest_hex->velocity = orig_dest_hex.velocity;
+                } else {
+                    dest_hex->fall_start_time = now;
+                    dest_hex->velocity = 0.0f;
+                }
+
+                // SDL_Log("Printing hex (%d,%d)", q, r + (int)vector_size(respawn_hexes));
                 // hex_print(dest_hex);
             }
+
+            hex->is_matched = false;
+            hex->respawn = false;
         }
 
-        // Respawn matched hexes, falling from above
-        for (int matched = 0; matched < vector_size(matched_hexes); matched++) {
-            // SDL_Log("Respawn at (%d,%d)", q, matched);
-            hex_spawn(q, matched);
-            Hex* hex = hex_at(q, matched);
+        // Respawn hexes, falling from above
+        for (int respawn = 0; respawn < vector_size(respawn_hexes); respawn++) {
+            // SDL_Log("Respawn at (%d,%d)", q, respawn);
+            hex_spawn(q, respawn);
+            Hex* hex = hex_at(q, respawn);
             hex->is_falling = true;
-            hex->fall_start_time = column_start_time + ms_to_frames(250) * (vector_size(matched_hexes) - matched);
+            hex->fall_start_time = column_start_time + ms_to_frames(250) * (vector_size(respawn_hexes) - respawn);
             hex->velocity = 0.0f;
             hex->falling_y_pos = transform_hex_to_screen(q, -4).y;
             // hex_print(hex);
         }
     }
 
-    vector_destroy(matched_hexes);
+    vector_destroy(respawn_hexes);
 }
 
 // The general plan for each game update is:
@@ -782,7 +793,7 @@ bool game_init(void) {
     game->hexes_are_falling = true;
 
     // For testing - load a specific board
-    // test_boards_load(g_test_board_six_black_pearls);
+    test_boards_load(g_test_board_six_black_pearls);
 
     cursor_init(&g_state.cursor);
 

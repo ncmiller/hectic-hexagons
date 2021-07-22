@@ -401,7 +401,7 @@ void hex_print(const Hex* hex) {
     SDL_Log("     is_rotating: %d", hex->is_rotating);
     SDL_Log("       rot_angle: %f", hex->rotation_angle);
     SDL_Log("      is_falling: %d", hex->is_falling);
-    SDL_Log("      fall_start: %llu", hex->fall_start_time);
+    SDL_Log("      fall_start: %u", (uint32_t)hex->fall_start_time);
     SDL_Log("        velocity: %f", hex->velocity);
     SDL_Log("      fall_y_pos: %f", hex->falling_y_pos);
     SDL_Log("  is_flower_fade: %d", hex->is_flower_fading);
