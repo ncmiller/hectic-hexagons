@@ -29,3 +29,5 @@ void cursor_right(Cursor* cursor);
 
 // Get the hex neighbors of the cursor.
 void cursor_neighbors(const Cursor* cursor, HexNeighbors* neighbors);
+
+void cursor_print(void);

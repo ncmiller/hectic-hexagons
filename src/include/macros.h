@@ -1,6 +1,8 @@
 #pragma once
 
 #include "test_boards.h"
+#include "game_state.h"
+#include "cursor.h"
 #include <assert.h>
 
 #define MAX(a, b) \
@@ -19,6 +21,13 @@
 
 #define ASSERT(x) \
     if (!(x)) { \
+        SDL_Log( \
+            "\nAssertion failed\n" \
+            "   File: %s\n" \
+            "   Line: %d\n", \
+            "\n" \
+            __FILE__, __LINE__); \
         test_boards_print_current(); \
-        assert((x)); \
+        cursor_print(); \
+        g_state.suspend_game = true; \
     }

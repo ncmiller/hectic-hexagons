@@ -13,8 +13,8 @@
 // Bit index corresponds to HexType (e.g. bit 0 is green, bit 1 is blue, etc).
 static const uint32_t LEVEL_HEX_TYPE_MASK[MAX_NUM_LEVELS + 1] = {
     [0] = 0x00, // invalid, not a level
-    [1] = 0x37, // level 1, no magenta
-    // [1] = 0x03, // Stress test, 2 colors only
+    // [1] = 0x37, // level 1, no magenta
+    [1] = 0x03, // Stress test, 2 colors only
     [2] = 0x37, // level 2, add multipliers
     [3] = 0x37, // level 3, add bombs
     [4] = 0x3F, // level 4, add magenta

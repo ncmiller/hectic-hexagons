@@ -1,5 +1,6 @@
 #include "cursor.h"
 #include "hex.h"
+#include "game_state.h"
 #include <macros.h>
 
 static Hex* anchor(const Cursor* cursor) {
@@ -152,4 +153,22 @@ void cursor_neighbors(const Cursor* cursor, HexNeighbors* neighbors) {
     } else {
         ASSERT(false && "Unexpected cursor position");
     }
+}
+
+void cursor_print(void) {
+    const char* pos_str = "";
+    if (g_state.cursor.position == CURSOR_POS_LEFT) {
+        pos_str = "Left of";
+    } else if (g_state.cursor.position == CURSOR_POS_RIGHT) {
+        pos_str = "Right of";
+    } else if (g_state.cursor.position == CURSOR_POS_ON) {
+        pos_str = "On";
+    } else {
+        pos_str = "Unknown";
+    }
+
+    SDL_Log("Cursor %s (%d,%d)",
+            pos_str,
+            g_state.cursor.hex_anchor.q,
+            g_state.cursor.hex_anchor.r);
 }

@@ -384,7 +384,7 @@ static bool handle_rotation(void) {
 }
 
 static void handle_simple_cluster(const HexCoord* hex_coords, size_t num_coords) {
-    ASSERT(num_coords >= 3 && num_coords <= 5);
+    ASSERT(num_coords >= 3);
 
     if (game->combos_remaining > 0) {
         game->combos_remaining--;
