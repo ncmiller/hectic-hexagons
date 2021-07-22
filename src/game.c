@@ -1,8 +1,8 @@
 #include "game_state.h"
 #include "window.h"
-#include "time_now.h"
 #include "hex.h"
 #include "macros.h"
+#include "time_utils.h"
 #include "bump_allocator.h"
 #include "text.h"
 #include "test_boards.h"
@@ -74,8 +74,8 @@ static bool handle_flower_match_animations(void) {
             vector_data_at(game->flower_match_animations, i);
 
         const double animation_progress =
-            (double)(now_ms() - fma->start_time) /
-            (double)FLOWER_MATCH_ANIMATION_TIME_MS;
+            (double)(g_state.frame_count - fma->start_time) /
+            (double)ms_to_frames(FLOWER_MATCH_ANIMATION_TIME_MS);
 
         HexNeighbors neighbors = {0};
         HexCoord coord = fma->flower_center;
@@ -133,8 +133,8 @@ static bool handle_cluster_match_animations(void) {
             vector_data_at(game->cluster_match_animations, i);
 
         const double animation_progress =
-            (double)(now_ms() - cma->start_time) /
-            (double)CLUSTER_MATCH_ANIMATION_TIME_MS;
+            (double)(g_state.frame_count - cma->start_time) /
+            (double)ms_to_frames(CLUSTER_MATCH_ANIMATION_TIME_MS);
 
         Hex* hex = hex_at(cma->hex_coord.q, cma->hex_coord.r);
         if (animation_progress > 1.0f) {
@@ -163,8 +163,8 @@ static void handle_local_score_animations(void) {
             vector_data_at(game->local_score_animations, i);
 
         const double animation_progress =
-            (double)(now_ms() - lsa->start_time) /
-            (double)LOCAL_SCORE_ANIMATION_TIME_MS;
+            (double)(g_state.frame_count - lsa->start_time) /
+            (double)ms_to_frames(LOCAL_SCORE_ANIMATION_TIME_MS);
 
         if (animation_progress > 1.0f) {
             lsa->in_progress = false;
@@ -260,7 +260,7 @@ static void handle_input(void) {
     bool start_rotation = rotate_cw || rotate_ccw;
     if (start_rotation && !game->rotation_in_progress) {
         game->rotation_in_progress = true;
-        game->rotation_start_time = now_ms();
+        game->rotation_start_time = g_state.frame_count;
         game->rotation_count = 0;
 
         // Determine if this is a starflower rotation
@@ -312,7 +312,8 @@ static bool handle_rotation(void) {
     cursor_neighbors(cursor, &neighbors);
 
     const double rotation_progress =
-        (double)((double)now_ms() - (double)game->rotation_start_time) / (double)ROTATION_TIME_MS;
+        (double)((double)g_state.frame_count - (double)game->rotation_start_time) /
+        (double)ms_to_frames(ROTATION_TIME_MS);
 
     // Rotation progress might be negative, if we are stalling between automatic trio rotations.
     if (rotation_progress < 0.0f) {
@@ -347,7 +348,7 @@ static bool handle_rotation(void) {
         game->rotation_count++;
         if (game->is_trio_rotation && (game->rotation_count < 3) && !board_has_any_matches()) {
             // Start another rotation in 100 ms
-            game->rotation_start_time = now_ms() + 100;
+            game->rotation_start_time = g_state.frame_count + ms_to_frames(100);
             return false;
         } else {
             game->rotation_in_progress = false;
@@ -423,7 +424,7 @@ static void handle_simple_cluster(const HexCoord* hex_coords, size_t num_coords)
         HexCoord c = hex_coords[i];
         ClusterMatchAnimation cma = {
             .in_progress = true,
-            .start_time = now_ms(),
+            .start_time = g_state.frame_count,
             .hex_coord = c,
         };
         vector_push_back(game->cluster_match_animations, &cma);
@@ -438,7 +439,7 @@ static void handle_simple_cluster(const HexCoord* hex_coords, size_t num_coords)
     // Start local score animation
     LocalScoreAnimation lsa = {
         .in_progress = true,
-        .start_time = now_ms(),
+        .start_time = g_state.frame_count,
         .score = (uint32_t)local_score,
         .alpha = 1.0f,
         .start_point = cluster_center,
@@ -514,7 +515,7 @@ static void handle_flower(const HexCoord* hex_coords, size_t num_coords) {
     // Start flower match animation
     FlowerMatchAnimation fma = {
         .in_progress = true,
-        .start_time = now_ms(),
+        .start_time = g_state.frame_count,
         .flower_center = hex_coords[0],
     };
     vector_push_back(game->flower_match_animations, &fma);
@@ -526,7 +527,7 @@ static void handle_flower(const HexCoord* hex_coords, size_t num_coords) {
     };
     LocalScoreAnimation lsa = {
         .in_progress = true,
-        .start_time = now_ms(),
+        .start_time = g_state.frame_count,
         .score = (uint32_t)local_score,
         .alpha = 1.0f,
         .start_point = start_point,
@@ -541,7 +542,7 @@ static bool handle_gravity(void) {
     bool hex_finished_falling = false;
     game->hexes_are_falling = false;
 
-    uint64_t now = now_ms();
+    uint32_t now = g_state.frame_count;
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         // From bottom of column to top
         for (int r = HEX_NUM_ROWS - 1; r >= 0; r--) {
@@ -574,7 +575,7 @@ static void handle_matched_hexes(void) {
             sizeof(Hex), bump_allocator_alloc, bump_allocator_free);
     vector_reserve(matched_hexes, HEX_NUM_ROWS);
 
-    uint64_t now = now_ms();
+    uint32_t now = g_state.frame_count;
 
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         vector_clear(matched_hexes);
@@ -616,7 +617,7 @@ static void handle_matched_hexes(void) {
             hex_spawn(q, matched);
             Hex* hex = hex_at(q, matched);
             hex->is_falling = true;
-            hex->fall_start_time = column_start_time + 250 * (vector_size(matched_hexes) - matched);
+            hex->fall_start_time = column_start_time + ms_to_frames(250) * (vector_size(matched_hexes) - matched);
             hex->velocity = 0.0f;
             hex->falling_y_pos = transform_hex_to_screen(q, -4).y;
             // hex_print(hex);
@@ -749,15 +750,15 @@ bool game_init(void) {
     }
 
     // Trigger hexes to fall from above board column by column, left-to-right.
-    uint64_t now = now_ms();
+    uint32_t now = g_state.frame_count;
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
-        uint64_t column_start_time = now + 500 + q * 350;
+        uint64_t column_start_time = now + ms_to_frames(500) + q * ms_to_frames(350);
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
             Hex* hex = hex_at(q, r);
             if (hex->is_valid) {
                 hex->is_falling = true;
                 hex->velocity = 0.0f;
-                hex->fall_start_time = column_start_time + (HEX_NUM_ROWS - r - 1) * 100;
+                hex->fall_start_time = column_start_time + (HEX_NUM_ROWS - r - 1) * ms_to_frames(100);
                 hex->falling_y_pos = transform_hex_to_screen(q, -4).y;
             }
         }

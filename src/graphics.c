@@ -410,7 +410,7 @@ void graphics_update(void) {
     Text* fps_text = &_graphics.fps_text;
     Text* update_text = &_graphics.update_text;
 
-    uint32_t frames = statistics_get()->total_frames;
+    uint32_t frames = g_state.frame_count;
     if (frames > 0 && frames % 60 == 0) {
         snprintf(text_buffer(fps_text), TEXT_MAX_LEN, "FPS: %3.1f", statistics_fps());
         snprintf(text_buffer(update_text), TEXT_MAX_LEN, "Upd: %3.1f", statistics_get()->update_ave_ns / 1000000.0f);

@@ -24,7 +24,7 @@ set(source_files
     src/game.c
     src/text.c
     src/window.c
-    src/time_now.c
+    src/time_utils.c
     src/cursor.c
     src/hex.c
     src/constants.c

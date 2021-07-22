@@ -7,6 +7,7 @@
 #include "hex.h"
 
 typedef struct {
+    uint32_t frame_count;
     bool running;
     Input input;
     Game game;

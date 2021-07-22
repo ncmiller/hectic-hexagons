@@ -1,6 +1,6 @@
 #include "window.h"
 #include "game_state.h"
-#include "time_now.h"
+#include "time_utils.h"
 #include "constants.h"
 #include "statistics.h"
 #include "graphics.h"
@@ -34,6 +34,7 @@ int main(int argc, char* argv[]) {
 
         statistics_update(update_diff, render_diff);
         bump_allocator_free_all();
+        g_state.frame_count++;
     }
 
     window_close();

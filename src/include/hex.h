@@ -29,22 +29,6 @@
 #define TRIO_LEFT_NEIGHBORS        0x30
 #define TRIO_RIGHT_NEIGHBORS       0x06
 
-#define MAX_NUM_LEVELS 7
-
-// Bitmasks to select specific hex types to spawn, based on level.
-// Bit index corresponds to HexType (e.g. bit 0 is green, bit 1 is blue, etc).
-static const uint32_t LEVEL_HEX_TYPE_MASK[MAX_NUM_LEVELS + 1] = {
-    [0] = 0x00, // invalid, not a level
-    [1] = 0x37, // level 1, no magenta
-    // [1] = 0x03, // Stress test, 2 colors only
-    [2] = 0x37, // level 2, add multipliers
-    [3] = 0x37, // level 3, add bombs
-    [4] = 0x3F, // level 4, add magenta
-    [5] = 0x3F, // level 5, no change
-    [6] = 0x3F, // level 6, no change
-    [7] = 0x3F, // level 7, no change
-};
-
 typedef enum {
     HEX_TYPE_GREEN,
     HEX_TYPE_BLUE,
