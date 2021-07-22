@@ -583,7 +583,14 @@ static void handle_matched_hexes(void) {
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         vector_clear(respawn_hexes);
         bool fall_triggered = false;
+
+        // Find the maximum fall start time from this column to use as the column start time
         uint64_t column_start_time = now;
+        for (int r = HEX_NUM_ROWS - 1; r >= 0; r--) {
+            const Hex* hex = hex_at(q,r);
+            column_start_time = MAX(column_start_time, hex->fall_start_time);
+        }
+
         for (int r = HEX_NUM_ROWS - 1; r >= 0; r--) {
             Hex* hex = hex_at(q, r);
             if (hex->is_matched && hex->respawn) {
@@ -793,7 +800,7 @@ bool game_init(void) {
     game->hexes_are_falling = true;
 
     // For testing - load a specific board
-    test_boards_load(g_test_board_six_black_pearls);
+    // test_boards_load(g_test_board_six_black_pearls);
 
     cursor_init(&g_state.cursor);
 
