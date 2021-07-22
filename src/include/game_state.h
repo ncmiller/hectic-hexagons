@@ -8,6 +8,9 @@
 
 typedef struct {
     uint32_t frame_count;
+    uint32_t slow_mode_throttle;
+    bool suspend_game;
+    bool slow_mode;
     bool running;
     Input input;
     Game game;

@@ -2,6 +2,14 @@
 
 #include <stdbool.h>
 
+// X: rotate clockwise
+// Z: rotate counter-clockwise
+// Arrow keys: move cursor
+// ESC: exit game
+// Spacebar: suspend game
+// P: Print current board to console
+// L: slow mode (5 Hz)
+
 typedef struct {
     // Set on keypress, cleared by game when read
     bool rotate_cw;
@@ -10,7 +18,7 @@ typedef struct {
     bool down;
     bool left;
     bool right;
-    bool spacebar;
+    bool print_board;
 } Input;
 
 bool input_init(void);

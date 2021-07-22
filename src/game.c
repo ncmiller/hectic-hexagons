@@ -222,8 +222,8 @@ static void handle_input(void) {
         input->left = false;
         go_left = true;
     }
-    if (input->spacebar) {
-        input->spacebar = false;
+    if (input->print_board) {
+        input->print_board = false;
         test_boards_print_current();
     }
     if (input->rotate_cw) {
@@ -640,7 +640,21 @@ static void handle_matched_hexes(void) {
 //  * Simple clusters (3, 4, or 5 of the same hex type, or multipliers clusters of any color)
 //  * Bomb diffusals (if combined with a multiplier, this will eliminate all of that color)
 //  * MMC clusters (whatever clusters remain, containing a mix of basic colors and multiplers)
-void game_update(void) {
+bool game_update(void) {
+    if (g_state.suspend_game) {
+        return false;
+    }
+
+    // throttle to 1/12 of 60 Hz == 5 Hz
+    if (g_state.slow_mode) {
+        g_state.slow_mode_throttle++;
+        if (g_state.slow_mode_throttle < 12) {
+            return false;
+        } else {
+            g_state.slow_mode_throttle = 0;
+        }
+    }
+
     handle_input();
 
     bool rotation_finished = false;
@@ -709,6 +723,8 @@ void game_update(void) {
     if (match_animation_completed) {
         handle_matched_hexes();
     }
+
+    return true;
 }
 
 bool game_init(void) {

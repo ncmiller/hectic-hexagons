@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
     while (g_state.running) {
         uint64_t start = now_ns();
         input_update();
-        game_update();
+        bool game_updated = game_update();
         graphics_update();
         uint64_t update_diff = now_ns() - start;
         graphics_flip();
@@ -34,7 +34,10 @@ int main(int argc, char* argv[]) {
 
         statistics_update(update_diff, render_diff);
         bump_allocator_free_all();
-        g_state.frame_count++;
+
+        if (game_updated) {
+            g_state.frame_count++;
+        }
     }
 
     window_close();

@@ -53,4 +53,4 @@ typedef struct {
 } Game;
 
 bool game_init(void);
-void game_update(void);
+bool game_update(void);
