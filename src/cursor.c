@@ -25,7 +25,6 @@ static void update_screen_point(Cursor* cursor) {
 void cursor_init(Cursor* cursor) {
     cursor->hex_anchor = (HexCoord){ .q = HEX_NUM_COLUMNS / 2, .r = HEX_NUM_ROWS / 2 };
     cursor->position = CURSOR_POS_LEFT;
-    cursor->is_visible = true;
     update_screen_point(cursor);
 }
 

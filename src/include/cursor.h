@@ -17,7 +17,6 @@ typedef struct {
     HexCoord hex_anchor;
     CursorPos position;
     Point screen_point;
-    bool is_visible;
 } Cursor;
 
 void cursor_init(Cursor* cursor);

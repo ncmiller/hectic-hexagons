@@ -22,11 +22,9 @@
 #define ASSERT(x) \
     if (!(x)) { \
         SDL_Log( \
-            "\nAssertion failed\n" \
-            "   File: %s\n" \
-            "   Line: %d\n", \
-            "\n" \
-            __FILE__, __LINE__); \
+            "\n\n----\n" \
+            "Assertion failed\n  %s:%d\n" \
+            "----", __FILE__, __LINE__); \
         test_boards_print_current(); \
         cursor_print(); \
         g_state.suspend_game = true; \

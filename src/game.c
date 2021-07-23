@@ -701,12 +701,27 @@ bool game_update(void) {
         game->gravity = GRAVITY_NORMAL;
     }
 
-    if (rotation_finished || hex_finished_falling) {
+    bool everything_is_stationary = true;
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            const Hex* hex = hex_at(q,r);
+            if (!hex->is_valid) {
+                continue;
+            }
+
+            if (hex->is_rotating || hex->is_falling || hex->is_flower_fading || hex->is_cluster_match_animating) {
+                everything_is_stationary = false;
+                break;
+            }
+        }
+    }
+
+    if (everything_is_stationary && (rotation_finished || hex_finished_falling)) {
+        size_t iteration = 0;
         // Match flowers
         Vector flower = vector_create_with_allocator(
                 sizeof(HexCoord), bump_allocator_alloc, bump_allocator_free);
         vector_reserve(flower, 7);
-        size_t iteration = 0;
         while (1) {
             vector_clear(flower);
             size_t flower_size = hex_find_one_flower(flower);
@@ -801,6 +816,7 @@ bool game_init(void) {
 
     // For testing - load a specific board
     // test_boards_load(g_test_board_six_black_pearls);
+    // test_boards_load(g_test_board_yellow_starflower);
 
     cursor_init(&g_state.cursor);
 
