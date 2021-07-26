@@ -40,3 +40,4 @@ void* bump_allocator_alloc(size_t size);
 void bump_allocator_free(void*);  // does nothing
 void bump_allocator_free_all(void);
 void bump_allocator_deinit(void);
+size_t bump_allocator_num_allocations(void);

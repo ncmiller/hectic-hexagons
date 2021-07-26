@@ -18,7 +18,8 @@
 #define LOCAL_SCORE_ANIMATION_MAX_HEIGHT HEX_HEIGHT
 #define CLUSTER_MATCH_ANIMATION_TIME_MS 500
 #define GRAVITY_INITIAL 10.0f
-#define GRAVITY_NORMAL 1.0f
+#define GRAVITY_NORMAL 0.5f
+#define MAX_VELOCITY 50
 #define HEX_GRAVITY_DELAY_MS 200
 
 // Convenience accessors to global state
@@ -69,22 +70,29 @@ static void handle_flower_match_animations(void) {
 
             if (animation_progress > 1.0f) {
                 fma->in_progress = false;
-                hex->is_dead = true;
-                respawn_count++;
-            } else {
-                { // compute alpha
-                    double s0 = 1.0f;
-                    double s1 = 0.0f;
-                    double t = animation_progress;
-                    t = t * t; // ease in, smash out
-                    hex->alpha = (1.0f - t) * s0 + t * s1;
+                hex->is_matched = false;
+                hex->is_flower_matched = false;
+                if (!fma->is_center) {
+                    // Respawn the perimeter of the flower
+                    hex->is_dead = true;
+                    respawn_count++;
                 }
+            } else {
+                if (!fma->is_center) {
+                    { // compute alpha
+                        double s0 = 1.0f;
+                        double s1 = 0.0f;
+                        double t = animation_progress;
+                        t = t * t; // ease in, smash out
+                        hex->alpha = (1.0f - t) * s0 + t * s1;
+                    }
 
-                { // compute scale
-                    double s0 = 1.0f;
-                    double s1 = FLOWER_MATCH_MAX_SCALE;
-                    double t = animation_progress;
-                    hex->scale = (1.0f - t) * s0 + t * s1;
+                    { // compute scale
+                        double s0 = 1.0f;
+                        double s1 = FLOWER_MATCH_MAX_SCALE;
+                        double t = animation_progress;
+                        hex->scale = (1.0f - t) * s0 + t * s1;
+                    }
                 }
             }
         }
@@ -94,12 +102,14 @@ static void handle_flower_match_animations(void) {
         // Respawn dead hexes
         uint32_t now = g_state.frame_count;
         for (int i = 0; i < respawn_count; i++) {
+            const Hex* stack_top = hex_at(q, hex_stack_index_to_row(vector_size(g_state.game.hexes[q]) - 1));
             Hex* new_hex = hex_spawn(q);
 
             // Start gravity after a short delay, making sure to start gravity
             // after the hex below.
-            const Hex* stack_top = hex_at(q, hex_stack_index_to_row(vector_size(g_state.game.hexes[q]) - 1));
-            uint32_t gravity_start_base = (i == 0) ?  now : stack_top->gravity_start_time;
+            uint32_t gravity_start_base = (i == 0) ?
+                MAX(now, stack_top->gravity_start_time) :
+                stack_top->gravity_start_time;
             new_hex->gravity_start_time = gravity_start_base + ms_to_frames(HEX_GRAVITY_DELAY_MS);
         }
     }
@@ -136,12 +146,14 @@ static void handle_cluster_match_animations(void) {
         // Respawn dead hexes
         uint32_t now = g_state.frame_count;
         for (int i = 0; i < respawn_count; i++) {
+            const Hex* stack_top = hex_at(q, hex_stack_index_to_row(vector_size(g_state.game.hexes[q]) - 1));
             Hex* new_hex = hex_spawn(q);
 
             // Start gravity after a short delay, making sure to start gravity
             // after the hex below.
-            const Hex* stack_top = hex_at(q, hex_stack_index_to_row(vector_size(g_state.game.hexes[q]) - 1));
-            uint32_t gravity_start_base = (i == 0) ?  now : stack_top->gravity_start_time;
+            uint32_t gravity_start_base = (i == 0) ?
+                MAX(now, stack_top->gravity_start_time) :
+                stack_top->gravity_start_time;
             new_hex->gravity_start_time = gravity_start_base + ms_to_frames(HEX_GRAVITY_DELAY_MS);
         }
     }
@@ -454,6 +466,7 @@ static void handle_flower(const HexCoord* hex_coords, size_t num_coords) {
     bool black_pearl_center = hex_is_black_pearl(center_hex);
 
     center_hex->is_matched = true;
+    center_hex->is_flower_matched = true;
 
     size_t num_neighbor_multipliers = 0;
     bool all_neighbors_starflower = true;
@@ -468,6 +481,7 @@ static void handle_flower(const HexCoord* hex_coords, size_t num_coords) {
             all_neighbors_black_pearl = false;
         }
         n_hex->is_matched = true;
+        n_hex->is_flower_matched = true;
     }
 
     if (all_neighbors_starflower) {
@@ -511,11 +525,16 @@ static void handle_flower(const HexCoord* hex_coords, size_t num_coords) {
         .in_progress = true,
         .start_time = g_state.frame_count,
         .flower_center = flower_center,
+        .is_center = false,
     };
     for (size_t i = 0; i < 6; i++) {
         Hex* n_hex = hex_at(hex_coords[i+1].q, hex_coords[i+1].r);
         n_hex->flower_match_animation = fma;
     }
+
+    // Start flower match animation for center
+    fma.is_center = true;
+    center_hex->flower_match_animation = fma;
 
     // Start local score animation
     LocalScoreAnimation lsa = {
@@ -533,14 +552,13 @@ static void handle_flower(const HexCoord* hex_coords, size_t num_coords) {
 static void handle_gravity(void) {
     uint32_t now = g_state.frame_count;
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
-        for (int r = 0; r < HEX_NUM_ROWS; r++) {
-        // for (int r = HEX_NUM_ROWS - 1; r >= 0; r--) {
+        for (int r = HEX_NUM_ROWS - 1; r >= 0; r--) {
             Hex* hex = hex_at(q, r);
             if (now < hex->gravity_start_time) {
                 continue;
             }
 
-            hex->velocity += game->gravity;
+            hex->velocity = MIN(MAX_VELOCITY, hex->velocity + game->gravity);
             hex->hex_point.y += hex->velocity;
 
             const int final_y = transform_hex_to_screen(q, r).y;
@@ -550,47 +568,26 @@ static void handle_gravity(void) {
                 hex->velocity = 0.0f;
                 hex->hex_point.y = final_y;
                 hex->is_stationary = true;
-                // if (q == 1 && r == HEX_NUM_ROWS - 1) {
-                //     SDL_Log("(%d,%d) is stationary", q, r);
-                //     hex_print(hex);
-                // }
             } else {
                 hex->is_stationary = false;
 
-                // if (q == 1 && r == HEX_NUM_ROWS - 1) {
                 // Still falling - check for collisions with the hex (or floor) below.
                 int y_below = (r == HEX_NUM_ROWS - 1) ?
                     final_y + HEX_HEIGHT : // floor
                     hex_at(q, r+1)->hex_point.y;
 
                 // Check if bottom of this hex is >= the y coord of the hex (or floor) below
-                bool collided = (hex->hex_point.y >= y_below);
+                bool collided = ((hex->hex_point.y + HEX_HEIGHT) >= y_below);
                 if (collided) {
                     hex->velocity = 0.0f;
                     hex->hex_point.y = y_below - HEX_HEIGHT;
                 }
-
-                // if (q == 1 && r == HEX_NUM_ROWS - 1) {
-                //     SDL_Log("Collided = %d, y_below = %d, final_y = %d",
-                //             collided,
-                //             y_below,
-                //             final_y);
-                //     hex_print(hex);
-                // }
             }
         }
     }
 
     if (hex_all_stationary_no_animation()) {
         game->gravity = GRAVITY_NORMAL;
-        // for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
-        //     for (int r = 0; r < HEX_NUM_ROWS; r++) {
-        //         const Hex* hex = hex_at(q, r);
-        //         SDL_Log("HEX (%d,%d)", q, r);
-        //         hex_print(hex);
-        //     }
-        // }
-        // g_state.suspend_game = true; // TODO - remove, debug only
     }
 }
 
@@ -600,43 +597,39 @@ static void handle_gravity(void) {
 //  * Bomb diffusals (if combined with a multiplier, this will eliminate all of that color)
 //  * MMC clusters (whatever clusters remain, containing a mix of basic colors and multiplers)
 static void check_for_matches(void) {
-    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
-        for (int r = 0; r < HEX_NUM_ROWS; r++) {
-            size_t iteration = 0;
-            // Match flowers
-            Vector flower = vector_create_with_allocator(
-                    sizeof(HexCoord), bump_allocator_alloc, bump_allocator_free);
-            vector_reserve(flower, 7);
-            while (1) {
-                vector_clear(flower);
-                size_t flower_size = hex_find_one_flower(flower);
-                if (flower_size == 0) {
-                    break;
-                }
-                handle_flower(vector_data_at(flower, 0), vector_size(flower));
-                ASSERT(iteration++ < 100);
-            }
-
-            // Match simple clusters
-            Vector simple_cluster = vector_create_with_allocator(
-                    sizeof(HexCoord), bump_allocator_alloc, bump_allocator_free);
-            vector_reserve(simple_cluster, 5);
-            iteration = 0;
-            while (1) {
-                vector_clear(simple_cluster);
-                size_t simple_cluster_size = hex_find_one_simple_cluster(simple_cluster);
-                if (simple_cluster_size == 0) {
-                    break;
-                }
-                // vector_print(simple_cluster, hex_coord_print);
-                handle_simple_cluster(vector_data_at(simple_cluster, 0), vector_size(simple_cluster));
-                ASSERT(iteration++ < 100);
-            }
-
-            // TODO - Match bomb cluster
-            // TODO - Match MMCs
+    size_t iteration = 0;
+    // Match flowers
+    Vector flower = vector_create_with_allocator(
+            sizeof(HexCoord), bump_allocator_alloc, bump_allocator_free);
+    vector_reserve(flower, 7);
+    while (1) {
+        vector_clear(flower);
+        size_t flower_size = hex_find_one_flower(flower);
+        if (flower_size == 0) {
+            break;
         }
+        handle_flower(vector_data_at(flower, 0), vector_size(flower));
+        ASSERT(iteration++ < 100);
     }
+
+    // Match simple clusters
+    Vector simple_cluster = vector_create_with_allocator(
+            sizeof(HexCoord), bump_allocator_alloc, bump_allocator_free);
+    vector_reserve(simple_cluster, 5);
+    iteration = 0;
+    while (1) {
+        vector_clear(simple_cluster);
+        size_t simple_cluster_size = hex_find_one_simple_cluster(simple_cluster);
+        if (simple_cluster_size == 0) {
+            break;
+        }
+        // vector_print(simple_cluster, hex_coord_print);
+        handle_simple_cluster(vector_data_at(simple_cluster, 0), vector_size(simple_cluster));
+        ASSERT(iteration++ < 100);
+    }
+
+    // TODO - Match bomb cluster
+    // TODO - Match MMCs
 }
 
 bool game_update(void) {
@@ -721,7 +714,7 @@ bool game_init(void) {
 
     // For testing - load a specific board
     // test_boards_load(g_test_board_six_black_pearls);
-    test_boards_load(g_test_board_yellow_starflower);
+    // test_boards_load(g_test_board_yellow_starflower);
 
     cursor_init(&g_state.cursor);
 

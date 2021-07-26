@@ -33,6 +33,9 @@ int main(int argc, char* argv[]) {
         uint64_t render_diff = now_ns() - start;
 
         statistics_update(update_diff, render_diff);
+        // SDL_Log("Frame %u, num allocations = %zu",
+        //         g_state.frame_count,
+        //         bump_allocator_num_allocations());
         bump_allocator_free_all();
 
         if (game_updated) {

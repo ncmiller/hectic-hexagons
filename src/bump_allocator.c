@@ -29,6 +29,7 @@ static struct {
     uint8_t* buffer;
     size_t buffer_size;
     size_t offset;
+    size_t num_allocations;
 } _bump_allocator;
 
 void bump_allocator_init(void* backing_buffer, size_t backing_buffer_size) {
@@ -48,6 +49,7 @@ void* bump_allocator_alloc(size_t size) {
 
     ptr = &_bump_allocator.buffer[_bump_allocator.offset];
     _bump_allocator.offset += size;
+    _bump_allocator.num_allocations++;
 
     memset(ptr, 0, size);
     return ptr;
@@ -60,8 +62,13 @@ void bump_allocator_free(void* ptr) {
 
 void bump_allocator_free_all(void) {
     _bump_allocator.offset = 0;
+    _bump_allocator.num_allocations = 0;
 }
 
 void bump_allocator_deinit(void) {
     memset(&_bump_allocator, 0, sizeof(_bump_allocator));
+}
+
+size_t bump_allocator_num_allocations(void) {
+    return _bump_allocator.num_allocations;
 }

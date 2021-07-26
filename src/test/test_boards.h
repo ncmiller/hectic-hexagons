@@ -1,6 +1,7 @@
 #pragma once
 
 #include "hex.h"
+#include "constants.h"
 
 #define BOARD_SIZE (HEX_NUM_COLUMNS * HEX_NUM_ROWS)
 

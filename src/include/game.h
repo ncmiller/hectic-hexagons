@@ -3,6 +3,7 @@
 #include "text.h"
 #include "vector.h"
 #include "hex.h"
+#include "constants.h"
 #include <SDL.h>
 #include <stdbool.h>
 #include <stdint.h>

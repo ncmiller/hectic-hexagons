@@ -15,9 +15,6 @@
 #define HEX_HEIGHT 52
 #endif
 
-#define HEX_NUM_COLUMNS 10
-#define HEX_NUM_ROWS 9
-
 // Bitmask to select specific hex neighbors in the bottom 6 bits.
 // Bit index corresponds to HexNeighborID (e.g. bit 0 is top, bit 1 is top right, etc).
 #define ALL_NEIGHBORS              0x3F
@@ -68,6 +65,7 @@ typedef struct {
     bool in_progress;
     uint32_t start_time;
     Point flower_center;
+    bool is_center;
 } FlowerMatchAnimation;
 
 typedef struct {
@@ -97,8 +95,11 @@ typedef struct {
     double alpha; // range [0.0, 1.0]
     double rotation_angle; // degrees
 
-    // True if the hex is combo'd in some way.
+    // True if the hex is combo'd in any way.
     bool is_matched;
+
+    // True if the hex is part of a flower match
+    bool is_flower_matched;
 } Hex;
 
 // Get coordinate of specific neighbor of hex at (q,r)

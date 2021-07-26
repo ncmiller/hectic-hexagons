@@ -23,7 +23,6 @@ static const uint32_t LEVEL_HEX_TYPE_MASK[MAX_NUM_LEVELS + 1] = {
     [7] = 0x3F, // level 7, no change
 };
 
-
 bool hex_coord_is_valid(HexCoord coord) {
     if (coord.q < 0 || coord.r < 0) {
         return false;
@@ -35,19 +34,6 @@ bool hex_coord_is_valid(HexCoord coord) {
         return false;
     }
     return true;
-}
-
-// Compute screen space point of upper-left corner of hex
-Point transform_hex_to_screen(int q, int r) {
-    Point p;
-    bool q_even = ((q & 1) == 0);
-    p.x = g_constants.board.x + (int)round(q * 0.75f * g_constants.hex_w);
-    if (q_even) {
-        p.y = g_constants.board.y + (int)round(g_constants.hex_h * (r + 0.5f));
-    } else {
-        p.y = g_constants.board.y + (int)round(g_constants.hex_h * r);
-    }
-    return p;
 }
 
 HexCoord hex_neighbor_coord(int q, int r, HexNeighborID neighbor_id) {
@@ -114,7 +100,8 @@ Hex* hex_spawn(int q) {
         .type = hex_random_type(),
         .scale = 1.0f,
         .alpha = 1.0f,
-        .hex_point = transform_hex_to_screen(q, -4),
+        .velocity = 0.0f,
+        .hex_point = g_constants.hex_spawn_point[q],
     };
 
     // For even columns, the last row of hexes are not valid
@@ -240,8 +227,8 @@ bool hex_has_flower_match(int q, int r, bool require_stationary) {
     }
 
     // Check that all neighbors are matchable and have the same type.
-    // Note: we allow a hex to be already matched (i.e. a neighbor hex
-    // can be part of more than one flower).
+    // Note: we allow a neighbor hex to be already matched with another
+    // flower.
     HexType type = hex_at(neighbors.coords[0].q, neighbors.coords[0].r)->type;
     for (int i = 1; i < neighbors.num_neighbors; i++) {
         HexCoord coord = neighbors.coords[i];
@@ -252,6 +239,10 @@ bool hex_has_flower_match(int q, int r, bool require_stationary) {
         }
 
         if (neighbor_hex->type != type) {
+            return false;
+        }
+
+        if (neighbor_hex->is_matched && !neighbor_hex->is_flower_matched) {
             return false;
         }
     }
@@ -284,6 +275,7 @@ size_t hex_find_one_simple_cluster(Vector hex_coords) {
             sizeof(HexCoord),
             bump_allocator_alloc,
             bump_allocator_free);
+    vector_reserve(dfs_stack, 10);
 
     // Iterate over the entire board.
     // Find the first trio cluster (all same type, none previously matched).
