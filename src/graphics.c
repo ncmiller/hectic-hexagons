@@ -2,6 +2,7 @@
 #include "game_state.h"
 #include "window.h"
 #include "constants.h"
+#include "macros.h"
 #include "statistics.h"
 #include <SDL_image.h>
 
@@ -155,11 +156,11 @@ bool graphics_init(void) {
             text_init(coord_text);
             text_set_font(coord_text, _graphics.hex_coord_font);
             snprintf(text_buffer(coord_text), TEXT_MAX_LEN, "%d,%d", q, r);
-            const Hex* hex = hex_at(q, r);
+            Point p = transform_hex_to_screen(q, r);
             text_set_point(
                     coord_text,
-                    hex->hex_point.x + HEX_WIDTH / 2 - 10,
-                    hex->hex_point.y + HEX_HEIGHT / 2 - 8);
+                    p.x + HEX_WIDTH / 2 - 10,
+                    p.y + HEX_HEIGHT / 2 - 8);
             text_set_color(coord_text, 0, 0, 0, 0xFF);
             text_draw(coord_text);
         }
@@ -225,30 +226,6 @@ void draw_animated_hex(const Hex* hex, Point animation_center) {
     SDL_SetTextureAlphaMod(_graphics.hex_basic_texture, 255);
 }
 
-void draw_falling_hex(const Hex* hex) {
-    if (!hex->is_valid) {
-        return;
-    }
-
-    SDL_Rect src = {
-        .x = hex->type * HEX_SOURCE_WIDTH,
-        .y = 0,
-        .w = HEX_SOURCE_WIDTH,
-        .h = HEX_SOURCE_HEIGHT,
-    };
-
-    SDL_Rect dest = {
-        .x = hex->hex_point.x,
-        .y = hex->falling_y_pos,
-        .w = HEX_WIDTH,
-        .h = HEX_HEIGHT,
-    };
-
-    if (0 != SDL_RenderCopy(window_renderer(), _graphics.hex_basic_texture, &src, &dest)) {
-        SDL_Log("SDL_RenderCopy error %s", SDL_GetError());
-    }
-}
-
 void draw_static_hex(const Hex* hex) {
     if (!hex->is_valid) {
         return;
@@ -286,89 +263,80 @@ void graphics_update(void) {
     };
     SDL_RenderFillRect(window_renderer(), &board_rect);
 
+    bool drawn[HEX_NUM_COLUMNS][HEX_NUM_ROWS] = {0};
+
     // Non-animated/static hexes
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
-            Hex* hex = &g_state.hexes[q][r];
-            bool hex_is_moving =
-                hex->is_rotating ||
-                hex->is_flower_fading ||
-                hex->is_cluster_match_animating ||
-                hex->is_falling;
-            if (!hex_is_moving) {
+            const Hex* hex = hex_at(q,r);
+
+            if (hex->is_stationary && !hex_is_animating(hex)) {
                 draw_static_hex(hex);
+                drawn[q][r] = true;
+            }
+        }
+    }
+
+    // Rotation animation
+    const RotationAnimation* rotation_animation = &g_state.game.rotation_animation;
+    if (rotation_animation->in_progress) {
+        for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+            for (int r = 0; r < HEX_NUM_ROWS; r++) {
+                const Hex* hex = hex_at(q,r);
+                if (!drawn[q][r] && hex->is_rotating) {
+                    draw_animated_hex(hex, rotation_animation->rotation_center);
+                    drawn[q][r] = true;
+                }
             }
         }
     }
 
     // Hexes with cluster match animations
-    bool cluster_match_is_animating = (vector_size(g_state.game.cluster_match_animations) > 0);
-    if (cluster_match_is_animating) {
-        for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
-            for (int r = 0; r < HEX_NUM_ROWS; r++) {
-                const Hex* hex = &g_state.hexes[q][r];
-                if (hex->is_cluster_match_animating) {
-                    const Hex* hex = hex_at(q, r);
-                    Point center = {
-                        .x = hex->hex_point.x + (HEX_WIDTH / 2),
-                        .y = hex->hex_point.y + (HEX_HEIGHT / 2),
-                    };
-                    draw_animated_hex(hex, center);
-                }
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            const Hex* hex = hex_at(q,r);
+            if (!drawn[q][r] && hex->cluster_match_animation.in_progress) {
+                Point center = {
+                    .x = hex->hex_point.x + (HEX_WIDTH / 2),
+                    .y = hex->hex_point.y + (HEX_HEIGHT / 2),
+                };
+                draw_animated_hex(hex, center);
+                drawn[q][r] = true;
             }
         }
     }
 
     // TODO - draw cursor halo if not animating, rotates with pieces
 
-    // Hexes with rotation animations
-    if (g_state.game.rotation_in_progress) {
-        for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
-            for (int r = 0; r < HEX_NUM_ROWS; r++) {
-                const Hex* hex = &g_state.hexes[q][r];
-                if (hex->is_rotating) {
-                    Point cursor = {
-                        .x = g_state.cursor.screen_point.x,
-                        .y = g_state.cursor.screen_point.y,
-                    };
-                    draw_animated_hex(hex, cursor);
-                }
-            }
-        }
-    }
-
-    // Hexes with flower fade animations
-    bool flower_match_is_animating = (vector_size(g_state.game.flower_match_animations) > 0);
-    if (flower_match_is_animating) {
-        for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
-            for (int r = 0; r < HEX_NUM_ROWS; r++) {
-                const Hex* hex = &g_state.hexes[q][r];
-                if (hex->is_flower_fading) {
-                    HexCoord center_coord = hex->flower_center;
-                    const Hex* center_hex = hex_at(center_coord.q, center_coord.r);
-                    Point flower_center = {
-                        .x = center_hex->hex_point.x + (HEX_WIDTH / 2),
-                        .y = center_hex->hex_point.y + (HEX_HEIGHT / 2),
-                    };
-                    draw_animated_hex(hex, flower_center);
-                }
-            }
-        }
-    }
-
-    // Falling hexes
+    // Hexes with flower match animations
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
-            const Hex* hex = &g_state.hexes[q][r];
-            if (hex->is_falling) {
-                draw_falling_hex(hex);
+            const Hex* hex = hex_at(q,r);
+            if (!drawn[q][r] && hex->flower_match_animation.in_progress) {
+                draw_animated_hex(hex, hex->flower_match_animation.flower_center);
+                drawn[q][r] = true;
             }
         }
     }
 
-    bool hide_cursor =
-         (flower_match_is_animating || cluster_match_is_animating || g_state.game.hexes_are_falling);
-    if (!hide_cursor) {
+    // All remaining hexes (should just be the ones falling)
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            const Hex* hex = hex_at(q,r);
+            if (!drawn[q][r]) {
+                draw_static_hex(hex);
+                drawn[q][r] = true;
+            }
+        }
+    }
+
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            ASSERT(drawn[q][r]);
+        }
+    }
+
+    if (hex_all_stationary_no_animation()) {
         // Draw cursor
         SDL_Color darkorchid = { .r = 0x99, .g = 0x32, .b = 0xcc, .a = 0xff };
         SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 0xff };

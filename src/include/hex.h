@@ -18,9 +18,6 @@
 #define HEX_NUM_COLUMNS 10
 #define HEX_NUM_ROWS 9
 
-// Minus 5 because in the last row, only 5 of 10 hexes are valid
-#define NUM_TOTAL_HEXES (HEX_NUM_COLUMNS * HEX_NUM_ROWS - 5)
-
 // Bitmask to select specific hex neighbors in the bottom 6 bits.
 // Bit index corresponds to HexNeighborID (e.g. bit 0 is top, bit 1 is top right, etc).
 #define ALL_NEIGHBORS              0x3F
@@ -68,37 +65,40 @@ typedef struct {
 } HexNeighbors;
 
 typedef struct {
-    bool is_valid;
+    bool in_progress;
+    uint32_t start_time;
+    Point flower_center;
+} FlowerMatchAnimation;
+
+typedef struct {
+    bool in_progress;
+    uint32_t start_time;
+} ClusterMatchAnimation;
+
+typedef struct {
+    bool is_valid; // TODO - do we even need this?
+    bool is_dead;
+
     HexType type;
+
+    // Updated by gravity system
     Point hex_point;
+    double velocity;
+    uint32_t gravity_start_time;
+    bool is_stationary; // not falling, candidate for matching
 
-    // True if the hex is combo'd in some way on the current frame.
-    // Cleared at the end of each frame.
-    bool is_matched;
+    // Animations
+    FlowerMatchAnimation flower_match_animation;
+    ClusterMatchAnimation cluster_match_animation;
+    bool is_rotating;
 
-    // True, if is_matched and the hex should be respawned up top
-    bool respawn;
-
-    // For general animation
+    // Transformations, modified by animations
     double scale;
     double alpha; // range [0.0, 1.0]
+    double rotation_angle; // degrees
 
-    // For rotation animations
-    bool is_rotating;
-    double rotation_angle;
-
-    // For gravity
-    bool is_falling;
-    uint64_t fall_start_time;
-    double velocity;
-    double falling_y_pos;
-
-    // For flower fade animations
-    bool is_flower_fading;
-    HexCoord flower_center;
-
-    // For cluster match animations
-    bool is_cluster_match_animating;
+    // True if the hex is combo'd in some way.
+    bool is_matched;
 } Hex;
 
 // Get coordinate of specific neighbor of hex at (q,r)
@@ -110,8 +110,10 @@ HexCoord hex_neighbor_coord(int q, int r, HexNeighborID neighbor_id);
 // Caller should check them with hex_coord_is_valid(q, r).
 void hex_neighbors(int q, int r, HexNeighbors* neighbors, uint8_t mask);
 
-// Spawn a random hex at (q,r)
-void hex_spawn(int q, int r);
+// Spawn a random hex in column q.
+// Creates a new hex and pushes it to the top of the column stack.
+// Initial position is above the view port.
+Hex* hex_spawn(int q);
 
 // Generate a random, level-appropriate hex.
 HexType hex_random_type(void);
@@ -123,10 +125,10 @@ Hex* hex_at(int q, int r);
 
 // Returns true if the hex at (q,r) has a trio match.
 // If n1 and n2 are non-NULL and trio match found, populate with neighbor coords.
-bool hex_has_cluster_match(int q, int r, HexCoord* n1, HexCoord* n2);
+bool hex_has_cluster_match(int q, int r, HexCoord* n1, HexCoord* n2, bool require_stationary);
 
 // Returns true if the hex at (q,r) has a flower match (all neighbors are the same type).
-bool hex_has_flower_match(int q, int r);
+bool hex_has_flower_match(int q, int r, bool require_stationary);
 
 // Find a single flower and add coordinates of center and neighbors to hex_coords.
 // The flower center will be in index 0, and the 6 neighbors will start at index 1.
@@ -156,7 +158,7 @@ size_t hex_find_one_mmc_cluster(Vector hex_coords);
 
 bool hex_coord_is_valid(HexCoord coord);
 
-// Given several coordinates, find get the bounding box, in screen space
+// Given several coordinates, get the bounding box, in screen space
 Rectangle hex_bounding_box_of_coords(const HexCoord* coords, size_t num_coords);
 
 bool hex_is_basic(const Hex* hex);
@@ -165,13 +167,13 @@ bool hex_is_starflower(const Hex* hex);
 bool hex_is_bomb(const Hex* hex);
 bool hex_is_black_pearl(const Hex* hex);
 
-void hex_clear_is_matched(Hex*);
-
-typedef void (*HexFn)(Hex*);
-
-// Calls fn on every hex in g_state.hexes.
-void hex_for_each(HexFn fn);
-
 void hex_print(const Hex* hex);
 Point transform_hex_to_screen(int q, int r);
-bool hex_is_matchable(const Hex* hex);
+
+int hex_row_to_stack_index(int row);
+int hex_stack_index_to_row(int stack_index);
+
+bool hex_is_animating(const Hex* hex);
+
+// Returns true if all hexes are stationary, not moving or animating.
+bool hex_all_stationary_no_animation(void);

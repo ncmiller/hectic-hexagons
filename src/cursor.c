@@ -8,17 +8,17 @@ static Hex* anchor(const Cursor* cursor) {
 }
 
 static void update_screen_point(Cursor* cursor) {
-    const Hex* hex = anchor(cursor);
+    Point p = transform_hex_to_screen(cursor->hex_anchor.q, cursor->hex_anchor.r);
 
     if (cursor->position == CURSOR_POS_RIGHT) {
-        cursor->screen_point.x = hex->hex_point.x + HEX_WIDTH;
-        cursor->screen_point.y = hex->hex_point.y + HEX_HEIGHT / 2;
+        cursor->screen_point.x = p.x + HEX_WIDTH;
+        cursor->screen_point.y = p.y + HEX_HEIGHT / 2;
     } else if (cursor->position == CURSOR_POS_LEFT) {
-        cursor->screen_point.x = hex->hex_point.x;
-        cursor->screen_point.y = hex->hex_point.y + HEX_HEIGHT / 2;
+        cursor->screen_point.x = p.x;
+        cursor->screen_point.y = p.y + HEX_HEIGHT / 2;
     } else if (cursor->position == CURSOR_POS_ON) {
-        cursor->screen_point.x = hex->hex_point.x + HEX_WIDTH / 2;
-        cursor->screen_point.y = hex->hex_point.y + HEX_HEIGHT / 2;
+        cursor->screen_point.x = p.x + HEX_WIDTH / 2;
+        cursor->screen_point.y = p.y + HEX_HEIGHT / 2;
     }
 }
 

@@ -54,7 +54,7 @@ void test_boards_print_current(void) {
     printf("\n\n");
     for (int r = 0; r < HEX_NUM_ROWS; r++) {
         for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
-            const Hex* hex = &g_state.hexes[q][r];
+            const Hex* hex = hex_at(q,r);
             if (hex->is_valid && hex->type < NUM_HEX_TYPES) {
                 printf("%s, ", type_to_str[hex->type]);
             } else {
@@ -69,7 +69,7 @@ void test_boards_print_current(void) {
 void test_boards_load(HexType board[BOARD_SIZE]) {
     for (int r = 0; r < HEX_NUM_ROWS; r++) {
         for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
-            Hex* hex = &g_state.hexes[q][r];
+            Hex* hex = hex_at(q,r);
             if (hex->is_valid) {
                 hex->type = board[r * HEX_NUM_COLUMNS + q];
             }
