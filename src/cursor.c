@@ -171,3 +171,22 @@ void cursor_print(void) {
             g_state.cursor.hex_anchor.q,
             g_state.cursor.hex_anchor.r);
 }
+
+bool cursor_contains_hex(const Cursor* cursor, HexCoord query_hex_coord) {
+    const Hex* query_hex = hex_at(query_hex_coord.q, query_hex_coord.r);
+    if (query_hex == anchor(cursor)) {
+        return true;
+    }
+
+    HexNeighbors cursor_hexes = {0};
+    cursor_neighbors(cursor, &cursor_hexes);
+
+    for (int i = 0; i < cursor_hexes.num_neighbors; i++) {
+        const Hex* n = hex_at(cursor_hexes.coords[i].q, cursor_hexes.coords[i].r);
+        if (n == query_hex) {
+            return true;
+        }
+    }
+
+    return false;
+}

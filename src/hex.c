@@ -430,7 +430,7 @@ Rectangle hex_bounding_box_of_coords(const HexCoord* coords, size_t num_coords) 
 void hex_print(const Hex* hex) {
     SDL_Log("        is_valid: %d", hex->is_valid);
     SDL_Log("            type: %d", hex->type);
-    SDL_Log("       hex_point: (%d,%d)", hex->hex_point.x, hex->hex_point.y);
+    SDL_Log("       hex_point: (%f,%f)", hex->hex_point.x, hex->hex_point.y);
     SDL_Log("        velocity: %f", hex->velocity);
     SDL_Log("   gravity_start: %u", (uint32_t)hex->gravity_start_time);
     SDL_Log("   is_stationary: %d", hex->is_stationary);

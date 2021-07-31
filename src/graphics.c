@@ -6,6 +6,7 @@
 #include "statistics.h"
 #include <SDL_image.h>
 
+#define HEX_RADIUS 30
 #define HEX_SOURCE_WIDTH 60
 #define HEX_SOURCE_HEIGHT 52
 #define DISPLAY_HEX_COORDS
@@ -38,6 +39,10 @@ typedef struct {
 } Graphics;
 
 static Graphics _graphics;
+
+static const SDL_Color white = { .r = 0xff, .g = 0xff, .b = 0xff, .a = 0xff };
+static const SDL_Color darkorchid = { .r = 0x99, .g = 0x32, .b = 0xcc, .a = 0xff };
+static const SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 0xff };
 
 static SDL_Texture* load_texture(const char* path) {
     SDL_Surface* surface = IMG_Load(path);
@@ -75,6 +80,7 @@ static bool load_all_media(void) {
     return true;
 }
 
+
 static void draw_circle(Point center, int radius, SDL_Color color) {
     SDL_SetRenderDrawColor(window_renderer(), color.r, color.g, color.b, color.a);
     for (int y = -radius; y <= radius; y++) {
@@ -84,6 +90,104 @@ static void draw_circle(Point center, int radius, SDL_Color color) {
             }
         }
     }
+}
+
+static int compare_point_y(const void* point1, const void* point2) {
+    Point p1 = *(Point*)point1;
+    Point p2 = *(Point*)point2;
+    return p1.y - p2.y;
+}
+
+static void draw_bottom_flat_triangle(Point p1, Point p2, Point p3) {
+    float invslope1 = (p2.x - p1.x) / (p2.y - p1.y);
+    float invslope2 = (p3.x - p1.x) / (p3.y - p1.y);
+    float curx1 = p1.x;
+    float curx2 = p1.x;
+    for (int scanline_y = p1.y; scanline_y <= p2.y; scanline_y++) {
+        SDL_RenderDrawLine(window_renderer(), curx1, scanline_y, curx2, scanline_y);
+        curx1 += invslope1;
+        curx2 += invslope2;
+    }
+}
+
+static void draw_top_flat_triangle(Point p1, Point p2, Point p3) {
+    float invslope1 = (p3.x - p1.x) / (p3.y - p1.y);
+    float invslope2 = (p3.x - p2.x) / (p3.y - p2.y);
+    float curx1 = p3.x;
+    float curx2 = p3.x;
+    for (int scanline_y = p3.y; scanline_y >= p1.y; scanline_y--) {
+        SDL_RenderDrawLine(window_renderer(), curx1, scanline_y, curx2, scanline_y);
+        curx1 -= invslope1;
+        curx2 -= invslope2;
+    }
+}
+
+// Ref: http://www.sunshine2k.de/coding/java/TriangleRasterization/TriangleRasterization.html
+static void draw_filled_triangle(Point p1, Point p2, Point p3, SDL_Color color) {
+    // Sort points by y value, lowest to highest
+    Point points[3] = {p1, p2, p3};
+    qsort(points, 3, sizeof(Point), compare_point_y);
+
+    SDL_SetRenderDrawColor(window_renderer(), color.r, color.g, color.b, color.a);
+    if (points[1].y == points[2].y) {
+        draw_bottom_flat_triangle(points[0], points[1], points[2]);
+    } else if (points[0].y == points[1].y) {
+        draw_top_flat_triangle(points[0], points[1], points[2]);
+    } else {
+        // General case: Split into bottom-flat and top-flat triangles
+        Point p4 = {
+            .x = (int)(
+                    points[0].x +
+                    ((float)(points[1].y - points[0].y) / (float)(points[2].y - points[0].y)) *
+                    (points[2].x - points[0].x)),
+            .y = points[1].y
+        };
+        draw_bottom_flat_triangle(points[0], points[1], p4);
+        draw_top_flat_triangle(points[1], p4, points[2]);
+    }
+
+    // SDL_RenderDrawLine(window_renderer(), p1.x, p1.y, p2.x, p2.y);
+    // SDL_RenderDrawLine(window_renderer(), p2.x, p2.y, p3.x, p3.y);
+    // SDL_RenderDrawLine(window_renderer(), p3.x, p3.y, p1.x, p1.y);
+}
+
+static void draw_hex(Point middle, int radius, SDL_Color color) {
+    int h = (int)(sqrt(3.0f) * (float)radius);
+    int w = 2 * radius;
+    Point top_left = {
+        .x = middle.x - w / 2,
+        .y = middle.y - h / 2,
+    };
+    draw_filled_triangle(
+            (Point){top_left.x + w / 2, top_left.y + h / 2},
+            (Point){top_left.x, top_left.y + h / 2},
+            (Point){top_left.x + w / 4, top_left.y},
+            color);
+    draw_filled_triangle(
+            (Point){top_left.x + w / 2, top_left.y + h / 2},
+            (Point){top_left.x + w / 4, top_left.y},
+            (Point){top_left.x + 3 * w / 4, top_left.y},
+            color);
+    draw_filled_triangle(
+            (Point){top_left.x + w / 2, top_left.y + h / 2},
+            (Point){top_left.x + 3 * w / 4, top_left.y},
+            (Point){top_left.x + w, top_left.y + h / 2},
+            color);
+    draw_filled_triangle(
+            (Point){top_left.x + w / 2, top_left.y + h / 2},
+            (Point){top_left.x, top_left.y + h / 2},
+            (Point){top_left.x + w / 4, top_left.y + h},
+            color);
+    draw_filled_triangle(
+            (Point){top_left.x + w / 2, top_left.y + h / 2},
+            (Point){top_left.x + w / 4, top_left.y + h},
+            (Point){top_left.x + 3 * w / 4, top_left.y + h},
+            color);
+    draw_filled_triangle(
+            (Point){top_left.x + w / 2, top_left.y + h / 2},
+            (Point){top_left.x + 3 * w / 4, top_left.y + h},
+            (Point){top_left.x + w, top_left.y + h / 2},
+            color);
 }
 
 bool graphics_init(void) {
@@ -170,7 +274,7 @@ bool graphics_init(void) {
     return true;
 }
 
-void draw_animated_hex(const Hex* hex, Point animation_center) {
+void draw_animated_hex(const Hex* hex, Point animation_center, bool is_cursor_hex) {
     if (!hex->is_valid) {
         return;
     }
@@ -263,28 +367,79 @@ void graphics_update(void) {
     };
     SDL_RenderFillRect(window_renderer(), &board_rect);
 
+    const RotationAnimation* rotation_animation = &g_state.game.rotation_animation;
+    bool cursor_active =
+        hex_all_stationary_no_animation() || rotation_animation->in_progress;
     bool drawn[HEX_NUM_COLUMNS][HEX_NUM_ROWS] = {0};
+    bool in_cursor[HEX_NUM_COLUMNS][HEX_NUM_ROWS] = {0};
 
-    // Non-animated/static hexes
+    // Mark hexes that are under the cursor
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            in_cursor[q][r] =
+                cursor_active &&
+                cursor_contains_hex(&g_state.cursor, (HexCoord){q,r});
+        }
+    }
+
+    // Non-animated/static hexes, non-cursor
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
             const Hex* hex = hex_at(q,r);
-
-            if (hex->is_stationary && !hex_is_animating(hex)) {
+            if (hex->is_stationary && !hex_is_animating(hex) && !in_cursor[q][r]) {
                 draw_static_hex(hex);
                 drawn[q][r] = true;
             }
         }
     }
 
-    // Rotation animation
-    const RotationAnimation* rotation_animation = &g_state.game.rotation_animation;
+    // Rotation animation, non-cursor
     if (rotation_animation->in_progress) {
         for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
             for (int r = 0; r < HEX_NUM_ROWS; r++) {
                 const Hex* hex = hex_at(q,r);
-                if (!drawn[q][r] && hex->is_rotating) {
-                    draw_animated_hex(hex, rotation_animation->rotation_center);
+                if (!drawn[q][r] && hex->is_rotating && !in_cursor[q][r]) {
+                    draw_animated_hex(hex, rotation_animation->rotation_center, false);
+                    drawn[q][r] = true;
+                }
+            }
+        }
+    }
+
+    // Cursor highlights
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            if (in_cursor[q][r]) {
+                const Hex* hex = hex_at(q,r);
+                if (!hex->is_rotating) {
+                    Point middle = {
+                        hex->hex_point.x + HEX_WIDTH / 2,
+                        hex->hex_point.y + HEX_HEIGHT / 2,
+                    };
+                    draw_hex(middle, HEX_RADIUS + 6, white);
+                }
+            }
+        }
+    }
+
+    // Non-animated/static hexes, cursor
+    for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+        for (int r = 0; r < HEX_NUM_ROWS; r++) {
+            const Hex* hex = hex_at(q,r);
+            if (hex->is_stationary && !hex_is_animating(hex) && in_cursor[q][r]) {
+                draw_static_hex(hex);
+                drawn[q][r] = true;
+            }
+        }
+    }
+
+    // Rotation animation, cursor
+    if (rotation_animation->in_progress) {
+        for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
+            for (int r = 0; r < HEX_NUM_ROWS; r++) {
+                const Hex* hex = hex_at(q,r);
+                if (!drawn[q][r] && hex->is_rotating && in_cursor[q][r]) {
+                    draw_animated_hex(hex, rotation_animation->rotation_center, true);
                     drawn[q][r] = true;
                 }
             }
@@ -300,20 +455,18 @@ void graphics_update(void) {
                     .x = hex->hex_point.x + (HEX_WIDTH / 2),
                     .y = hex->hex_point.y + (HEX_HEIGHT / 2),
                 };
-                draw_animated_hex(hex, center);
+                draw_animated_hex(hex, center, false);
                 drawn[q][r] = true;
             }
         }
     }
-
-    // TODO - draw cursor halo if not animating, rotates with pieces
 
     // Hexes with flower match animations
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {
         for (int r = 0; r < HEX_NUM_ROWS; r++) {
             const Hex* hex = hex_at(q,r);
             if (!drawn[q][r] && hex->flower_match_animation.in_progress) {
-                draw_animated_hex(hex, hex->flower_match_animation.flower_center);
+                draw_animated_hex(hex, hex->flower_match_animation.flower_center, false);
                 drawn[q][r] = true;
             }
         }
@@ -336,10 +489,9 @@ void graphics_update(void) {
         }
     }
 
-    if (hex_all_stationary_no_animation()) {
+    if (cursor_active) {
         // Draw cursor
-        SDL_Color darkorchid = { .r = 0x99, .g = 0x32, .b = 0xcc, .a = 0xff };
-        SDL_Color black = { .r = 0, .g = 0, .b = 0, .a = 0xff };
+        draw_circle(g_state.cursor.screen_point, CURSOR_RADIUS+3, white);
         draw_circle(g_state.cursor.screen_point, CURSOR_RADIUS, black);
         draw_circle(g_state.cursor.screen_point, CURSOR_RADIUS-1, darkorchid);
     }

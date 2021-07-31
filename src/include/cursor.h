@@ -29,4 +29,7 @@ void cursor_right(Cursor* cursor);
 // Get the hex neighbors of the cursor.
 void cursor_neighbors(const Cursor* cursor, HexNeighbors* neighbors);
 
+// Returns true if query_hex_coord is under the cursor
+bool cursor_contains_hex(const Cursor* cursor, HexCoord query_hex_coord);
+
 void cursor_print(void);
