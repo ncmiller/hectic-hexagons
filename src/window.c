@@ -2,11 +2,43 @@
 
 #include <SDL_image.h>
 #include <SDL_ttf.h>
+#include <SDL_mixer.h>
 
 static SDL_Renderer* _renderer;
 static SDL_Window* _window;
 
+static void print_version_info(void) {
+    SDL_version sdl_version;
+    SDL_version ttf_version;
+    SDL_version image_version;
+    SDL_version mixer_version;
+
+    SDL_VERSION(&sdl_version);
+    SDL_TTF_VERSION(&ttf_version);
+    SDL_IMAGE_VERSION(&image_version);
+    SDL_MIXER_VERSION(&mixer_version);
+
+    SDL_Log("SDL version:       %d.%d.%d",
+            sdl_version.major,
+            sdl_version.minor,
+            sdl_version.patch);
+    SDL_Log("SDL_ttf version:   %d.%d.%d",
+            ttf_version.major,
+            ttf_version.minor,
+            ttf_version.patch);
+    SDL_Log("SDL_image version: %d.%d.%d",
+            image_version.major,
+            image_version.minor,
+            image_version.patch);
+    SDL_Log("SDL_mixer version: %d.%d.%d",
+            mixer_version.major,
+            mixer_version.minor,
+            mixer_version.patch);
+}
+
 bool window_init(void) {
+    print_version_info();
+
     if (0 != SDL_Init(SDL_INIT_EVERYTHING)) {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
         return false;
@@ -20,7 +52,12 @@ bool window_init(void) {
     }
 
     if (TTF_Init() != 0) {
-        SDL_Log("TTF_Init failed, error: %s'\n", TTF_GetError());
+        SDL_Log("TTF_Init failed, error: %s", TTF_GetError());
+        return false;
+    }
+
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) != 0) {
+        SDL_Log("Mix_OpenAudio failed, error: %s", Mix_GetError());
         return false;
     }
 
@@ -65,6 +102,7 @@ void window_close(void) {
         SDL_DestroyWindow(_window);
     }
 
+    Mix_Quit();
     TTF_Quit();
     IMG_Quit();
     SDL_Quit();

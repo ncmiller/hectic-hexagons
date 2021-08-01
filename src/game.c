@@ -7,6 +7,7 @@
 #include "text.h"
 #include "test_boards.h"
 #include "macros.h"
+#include "audio.h"
 #include <stdlib.h>
 #include <inttypes.h>
 
@@ -361,6 +362,10 @@ static void handle_rotation(void) {
             }
         }
     } else {
+        if (rotation_progress == 0.0f) {
+            audio_play_sound_effect();
+        }
+
         const double angle = rotation_progress * game->rotation_animation.degrees_to_rotate;
         double scale = 1.0f;
         if (rotation_progress < 0.5f) {

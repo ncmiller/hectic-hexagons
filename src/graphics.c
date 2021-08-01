@@ -61,20 +61,20 @@ static SDL_Texture* load_texture(const char* path) {
     return texture;
 }
 
-static bool load_all_media(void) {
+static bool load_all_graphics(void) {
     bool all_loaded = true;
 
-    _graphics.hex_basic_texture = load_texture("media/hex_basic.png");
+    _graphics.hex_basic_texture = load_texture("graphics/hex_basic.png");
     all_loaded &= (_graphics.hex_basic_texture != NULL);
-    _graphics.font = TTF_OpenFont("media/Caviar_Dreams_Bold.ttf", FONT_SIZE);
+    _graphics.font = TTF_OpenFont("fonts/Caviar_Dreams_Bold.ttf", FONT_SIZE);
     all_loaded &= (_graphics.font != NULL);
-    _graphics.local_score_font = TTF_OpenFont("media/Caviar_Dreams_Bold.ttf", LOCAL_SCORE_FONT_SIZE);
+    _graphics.local_score_font = TTF_OpenFont("fonts/Caviar_Dreams_Bold.ttf", LOCAL_SCORE_FONT_SIZE);
     all_loaded &= (_graphics.local_score_font != NULL);
-    _graphics.hex_coord_font = TTF_OpenFont("media/Caviar_Dreams_Bold.ttf", HEX_COORD_FONT_SIZE);
+    _graphics.hex_coord_font = TTF_OpenFont("fonts/Caviar_Dreams_Bold.ttf", HEX_COORD_FONT_SIZE);
     all_loaded &= (_graphics.hex_coord_font != NULL);
 
     if (!all_loaded) {
-        SDL_Log("Failed to load media. Exiting.");
+        SDL_Log("Failed to load graphics. Exiting.");
         return false;
     }
     return true;
@@ -191,7 +191,7 @@ static void draw_hex(Point middle, int radius, SDL_Color color) {
 }
 
 bool graphics_init(void) {
-    if (!load_all_media()) {
+    if (!load_all_graphics()) {
         return false;
     }
 

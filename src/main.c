@@ -4,6 +4,7 @@
 #include "constants.h"
 #include "statistics.h"
 #include "graphics.h"
+#include "audio.h"
 #include "bump_allocator.h"
 
 #define RETURN_IF_FALSE(x) if ((x) == false) { return 1; }
@@ -21,6 +22,8 @@ int main(int argc, char* argv[]) {
     CLOSE_AND_RETURN_IF_FALSE(input_init());
     CLOSE_AND_RETURN_IF_FALSE(game_init());
     CLOSE_AND_RETURN_IF_FALSE(graphics_init());
+    CLOSE_AND_RETURN_IF_FALSE(audio_init());
+    audio_play_pause_music();
 
     g_state.running = true;
     while (g_state.running) {
