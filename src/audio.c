@@ -19,12 +19,12 @@ static Audio _audio = {0};
 static bool load_all_sounds(void) {
     bool all_loaded = true;
 
-    _audio.music = Mix_LoadMUS("sounds/music.ogg");
+    _audio.music = Mix_LoadMUS("assets/sounds/music.ogg");
     if (_audio.music == NULL) {
         SDL_Log("Failed to load music, error: %s", Mix_GetError());
     }
     all_loaded &= (_audio.music != NULL);
-    _audio.sound_effect = Mix_LoadWAV("sounds/sound_effect.wav");
+    _audio.sound_effect = Mix_LoadWAV("assets/sounds/sound_effect.wav");
     all_loaded &= (_audio.sound_effect != NULL);
 
     if (!all_loaded) {

@@ -39,7 +39,8 @@ static void print_version_info(void) {
 bool window_init(void) {
     print_version_info();
 
-    if (0 != SDL_Init(SDL_INIT_EVERYTHING)) {
+    Uint32 init_flags = SDL_INIT_AUDIO | SDL_INIT_VIDEO;
+    if (0 != SDL_Init(init_flags)) {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
         return false;
     }

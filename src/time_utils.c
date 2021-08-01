@@ -2,14 +2,14 @@
 #include <time.h>
 #include <math.h>
 
-#define NS_PER_SECOND (1000000000)
+#define NS_PER_SECOND ((uint64_t)1000000000)
 
 uint64_t now_ms(void) {
-    return now_us() / 1000;
+    return now_us() / (uint64_t)1000;
 }
 
 uint64_t now_us(void) {
-    return now_ns() / 1000;
+    return now_ns() / (uint64_t)1000;
 }
 
 uint64_t now_ns(void) {

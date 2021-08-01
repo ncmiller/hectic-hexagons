@@ -64,13 +64,13 @@ static SDL_Texture* load_texture(const char* path) {
 static bool load_all_graphics(void) {
     bool all_loaded = true;
 
-    _graphics.hex_basic_texture = load_texture("graphics/hex_basic.png");
+    _graphics.hex_basic_texture = load_texture("assets/graphics/hex_basic.png");
     all_loaded &= (_graphics.hex_basic_texture != NULL);
-    _graphics.font = TTF_OpenFont("fonts/Caviar_Dreams_Bold.ttf", FONT_SIZE);
+    _graphics.font = TTF_OpenFont("assets/fonts/Caviar_Dreams_Bold.ttf", FONT_SIZE);
     all_loaded &= (_graphics.font != NULL);
-    _graphics.local_score_font = TTF_OpenFont("fonts/Caviar_Dreams_Bold.ttf", LOCAL_SCORE_FONT_SIZE);
+    _graphics.local_score_font = TTF_OpenFont("assets/fonts/Caviar_Dreams_Bold.ttf", LOCAL_SCORE_FONT_SIZE);
     all_loaded &= (_graphics.local_score_font != NULL);
-    _graphics.hex_coord_font = TTF_OpenFont("fonts/Caviar_Dreams_Bold.ttf", HEX_COORD_FONT_SIZE);
+    _graphics.hex_coord_font = TTF_OpenFont("assets/fonts/Caviar_Dreams_Bold.ttf", HEX_COORD_FONT_SIZE);
     all_loaded &= (_graphics.hex_coord_font != NULL);
 
     if (!all_loaded) {
@@ -241,7 +241,7 @@ bool graphics_init(void) {
     text_set_point(update_text, LOGICAL_WINDOW_WIDTH - update_text->width - 20, 40);
     text_draw(update_text);
 
-#if 0
+#if 1
     Text* render_text = &_graphics.render_text;
     text_init(render_text);
     text_set_font(render_text, _graphics.font);
@@ -529,14 +529,17 @@ void graphics_update(void) {
     // Statistics rendering
     Text* fps_text = &_graphics.fps_text;
     Text* update_text = &_graphics.update_text;
+    Text* render_text = &_graphics.render_text;
 
     uint32_t frames = g_state.frame_count;
     if (frames > 0 && frames % 60 == 0) {
         snprintf(text_buffer(fps_text), TEXT_MAX_LEN, "FPS: %3.1f", statistics_fps());
         snprintf(text_buffer(update_text), TEXT_MAX_LEN, "Upd: %3.1f", statistics_get()->update_ave_ns / 1000000.0f);
+        snprintf(text_buffer(render_text), TEXT_MAX_LEN, "Rnd: %3.1f", statistics_get()->render_ave_ns / 1000000.0f);
     }
     text_draw(fps_text);
     text_draw(update_text);
+    text_draw(render_text);
 }
 
 void graphics_flip(void) {
