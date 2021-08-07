@@ -28,19 +28,19 @@ void cursor_init(Cursor* cursor) {
     update_screen_point(cursor);
 }
 
-void cursor_up(Cursor* cursor) {
+bool cursor_up(Cursor* cursor) {
     int q = cursor->hex_anchor.q;
     int r = cursor->hex_anchor.r;
 
     if (cursor->position == CURSOR_POS_RIGHT) {
         if (r == 0) {
-            return;
+            return false;
         }
         cursor->hex_anchor = hex_neighbor_coord(q, r, HEX_NEIGHBOR_TOP_RIGHT);
         cursor->position = CURSOR_POS_LEFT;
     } else if (cursor->position == CURSOR_POS_LEFT) {
         if (r == 0) {
-            return;
+            return false;
         }
         cursor->hex_anchor = hex_neighbor_coord(q, r, HEX_NEIGHBOR_TOP_LEFT);
         cursor->position = CURSOR_POS_RIGHT;
@@ -50,21 +50,22 @@ void cursor_up(Cursor* cursor) {
     }
 
     update_screen_point(cursor);
+    return true;
 }
 
-void cursor_down(Cursor* cursor) {
+bool cursor_down(Cursor* cursor) {
     int q = cursor->hex_anchor.q;
     int r = cursor->hex_anchor.r;
 
     if (cursor->position == CURSOR_POS_RIGHT) {
         if (r == HEX_NUM_ROWS - 2) {
-            return;
+            return false;
         }
         cursor->hex_anchor = hex_neighbor_coord(q, r, HEX_NEIGHBOR_BOTTOM_RIGHT);
         cursor->position = CURSOR_POS_LEFT;
     } else if (cursor->position == CURSOR_POS_LEFT) {
         if (r == HEX_NUM_ROWS - 1) {
-            return;
+            return false;
         }
         cursor->hex_anchor = hex_neighbor_coord(q, r, HEX_NEIGHBOR_BOTTOM_LEFT);
         cursor->position = CURSOR_POS_RIGHT;
@@ -74,14 +75,15 @@ void cursor_down(Cursor* cursor) {
     }
 
     update_screen_point(cursor);
+    return true;
 }
 
-void cursor_left(Cursor* cursor) {
+bool cursor_left(Cursor* cursor) {
     int q = cursor->hex_anchor.q;
 
     if (cursor->position == CURSOR_POS_RIGHT) {
         if (q == 0) {
-            return;
+            return false;
         }
         HexType type = anchor(cursor)->type;
         if ((type == HEX_TYPE_STARFLOWER) ||
@@ -93,7 +95,7 @@ void cursor_left(Cursor* cursor) {
         }
     } else if (cursor->position == CURSOR_POS_LEFT) {
         if (q <= 1) {
-            return;
+            return false;
         }
         cursor->hex_anchor.q -= 2;
         cursor->position = CURSOR_POS_RIGHT;
@@ -102,20 +104,21 @@ void cursor_left(Cursor* cursor) {
     }
 
     update_screen_point(cursor);
+    return true;
 }
 
-void cursor_right(Cursor* cursor) {
+bool cursor_right(Cursor* cursor) {
     int q = cursor->hex_anchor.q;
 
     if (cursor->position == CURSOR_POS_RIGHT) {
         if (q >= HEX_NUM_COLUMNS - 2) {
-            return;
+            return false;
         }
         cursor->hex_anchor.q += 2;
         cursor->position = CURSOR_POS_LEFT;
     } else if (cursor->position == CURSOR_POS_LEFT) {
         if (q >= HEX_NUM_COLUMNS - 1) {
-            return;
+            return false;
         }
         HexType type = anchor(cursor)->type;
         if ((type == HEX_TYPE_STARFLOWER) ||
@@ -130,6 +133,7 @@ void cursor_right(Cursor* cursor) {
     }
 
     update_screen_point(cursor);
+    return true;
 }
 
 void cursor_neighbors(const Cursor* cursor, HexNeighbors* neighbors) {

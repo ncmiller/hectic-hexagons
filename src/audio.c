@@ -10,11 +10,19 @@
 
 typedef struct {
     Mix_Music* music;
-    Mix_Chunk* sound_effect;
+    Mix_Chunk* cursor_move;
     uint8_t music_volume;
 } Audio;
 
 static Audio _audio = {0};
+
+static Mix_Chunk* effect_to_mix_chunk(AudioSoundEffect effect) {
+    if (effect == AUDIO_MOVE_CURSOR) {
+        return _audio.cursor_move;
+    } else {
+        return NULL;
+    }
+}
 
 static bool load_all_sounds(void) {
     bool all_loaded = true;
@@ -24,8 +32,9 @@ static bool load_all_sounds(void) {
         SDL_Log("Failed to load music, error: %s", Mix_GetError());
     }
     all_loaded &= (_audio.music != NULL);
-    _audio.sound_effect = Mix_LoadWAV("assets/sounds/sound_effect.wav");
-    all_loaded &= (_audio.sound_effect != NULL);
+
+    _audio.cursor_move = Mix_LoadWAV("assets/sounds/cursor_move.wav");
+    all_loaded &= (_audio.cursor_move != NULL);
 
     if (!all_loaded) {
         SDL_Log("Failed to load audio. Exiting.");
@@ -42,8 +51,13 @@ bool audio_init(void) {
     return load_all_sounds();
 }
 
-void audio_play_sound_effect(void) {
-    Mix_PlayChannel(AUDIO_ANY_CHANNEL, _audio.sound_effect, AUDIO_ONE_SHOT);
+void audio_play_sound_effect(AudioSoundEffect effect) {
+    if (effect >= AUDIO_NUM_SOUND_EFFECTS) {
+        SDL_Log("Error, invalid sound effect: %d", effect);
+        return;
+    }
+
+    Mix_PlayChannel(AUDIO_ANY_CHANNEL, effect_to_mix_chunk(effect), AUDIO_ONE_SHOT);
 }
 
 void audio_play_pause_music(void) {

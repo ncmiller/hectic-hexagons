@@ -21,10 +21,11 @@ typedef struct {
 
 void cursor_init(Cursor* cursor);
 
-void cursor_up(Cursor* cursor);
-void cursor_down(Cursor* cursor);
-void cursor_left(Cursor* cursor);
-void cursor_right(Cursor* cursor);
+// Return true if cursor was moved
+bool cursor_up(Cursor* cursor);
+bool cursor_down(Cursor* cursor);
+bool cursor_left(Cursor* cursor);
+bool cursor_right(Cursor* cursor);
 
 // Get the hex neighbors of the cursor.
 void cursor_neighbors(const Cursor* cursor, HexNeighbors* neighbors);

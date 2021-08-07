@@ -243,18 +243,24 @@ static void handle_input(void) {
         return;
     }
 
+    bool cursor_moved = false;
     if (go_up) {
-        cursor_up(cursor);
+        cursor_moved |= cursor_up(cursor);
     }
     if (go_down) {
-        cursor_down(cursor);
+        cursor_moved |= cursor_down(cursor);
     }
     if (go_left) {
-        cursor_left(cursor);
+        cursor_moved |= cursor_left(cursor);
     }
     if (go_right) {
-        cursor_right(cursor);
+        cursor_moved |= cursor_right(cursor);
     }
+
+    if (cursor_moved) {
+        audio_play_sound_effect(AUDIO_MOVE_CURSOR);
+    }
+
 
     bool start_rotation = rotate_cw || rotate_ccw;
     if (start_rotation && !game->rotation_animation.in_progress) {
@@ -363,7 +369,7 @@ static void handle_rotation(void) {
         }
     } else {
         if (rotation_progress == 0.0f) {
-            audio_play_sound_effect();
+            // TODO - play rotation sound effect
         }
 
         const double angle = rotation_progress * game->rotation_animation.degrees_to_rotate;
