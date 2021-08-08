@@ -11,6 +11,7 @@
 typedef struct {
     Mix_Music* music;
     Mix_Chunk* cursor_move;
+    Mix_Chunk* starflower;
     uint8_t music_volume;
 } Audio;
 
@@ -19,6 +20,8 @@ static Audio _audio = {0};
 static Mix_Chunk* effect_to_mix_chunk(AudioSoundEffect effect) {
     if (effect == AUDIO_MOVE_CURSOR) {
         return _audio.cursor_move;
+    } else if (effect == AUDIO_STARFLOWER) {
+        return _audio.starflower;
     } else {
         return NULL;
     }
@@ -35,6 +38,9 @@ static bool load_all_sounds(void) {
 
     _audio.cursor_move = Mix_LoadWAV("assets/sounds/cursor_move.wav");
     all_loaded &= (_audio.cursor_move != NULL);
+
+    _audio.starflower = Mix_LoadWAV("assets/sounds/starflower.wav");
+    all_loaded &= (_audio.starflower != NULL);
 
     if (!all_loaded) {
         SDL_Log("Failed to load audio. Exiting.");

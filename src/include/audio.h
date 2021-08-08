@@ -2,6 +2,7 @@
 
 typedef enum {
     AUDIO_MOVE_CURSOR,
+    AUDIO_STARFLOWER,
     AUDIO_NUM_SOUND_EFFECTS,
 } AudioSoundEffect;
 

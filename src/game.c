@@ -501,6 +501,7 @@ static void handle_flower(const HexCoord* hex_coords, size_t num_coords) {
     } else if (all_neighbors_black_pearl) {
         // TODO - set flag to end game
     } else {
+        audio_play_sound_effect(AUDIO_STARFLOWER);
         center_hex->type = HEX_TYPE_STARFLOWER;
     }
 
@@ -725,7 +726,7 @@ bool game_init(void) {
 
     // For testing - load a specific board
     // test_boards_load(g_test_board_six_black_pearls);
-    // test_boards_load(g_test_board_yellow_starflower);
+    test_boards_load(g_test_board_yellow_starflower);
 
     cursor_init(&g_state.cursor);
 
