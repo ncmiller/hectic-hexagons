@@ -38,7 +38,7 @@ set(source_files
 )
 
 
-set(CMAKE_C_FLAGS "-std=gnu11 -Wall -Werror -Wno-unused-function")
+set(CMAKE_C_FLAGS "-std=gnu11 -Wall -Werror -Wno-unused-variable -Wno-unused-function")
 
 set(ENABLE_DEBUG 1)
 if(ENABLE_DEBUG)

@@ -370,8 +370,8 @@ void graphics_update(void) {
     const RotationAnimation* rotation_animation = &g_state.game.rotation_animation;
     bool cursor_active =
         hex_all_stationary_no_animation() || rotation_animation->in_progress;
-    bool drawn[HEX_NUM_COLUMNS][HEX_NUM_ROWS] = {0};
-    bool in_cursor[HEX_NUM_COLUMNS][HEX_NUM_ROWS] = {0};
+    bool drawn[HEX_NUM_COLUMNS][HEX_NUM_ROWS] = {{0}};
+    bool in_cursor[HEX_NUM_COLUMNS][HEX_NUM_ROWS] = {{0}};
 
     // Mark hexes that are under the cursor
     for (int q = 0; q < HEX_NUM_COLUMNS; q++) {

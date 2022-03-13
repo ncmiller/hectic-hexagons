@@ -33,9 +33,6 @@ static void loop(void* arg) {
     }
     prev_start = start;
 
-    // SDL_Log("Frame %u, num allocations = %zu",
-    //         g_state.frame_count,
-    //         bump_allocator_num_allocations());
     bump_allocator_free_all();
 
     if (game_updated) {

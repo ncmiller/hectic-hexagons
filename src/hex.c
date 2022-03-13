@@ -270,7 +270,7 @@ size_t hex_find_one_flower(Vector hex_coords) {
 }
 
 size_t hex_find_one_simple_cluster(Vector hex_coords) {
-    bool in_cluster[HEX_NUM_COLUMNS][HEX_NUM_ROWS] = {0};
+    bool in_cluster[HEX_NUM_COLUMNS][HEX_NUM_ROWS] = {{0}};
     Vector dfs_stack = vector_create_with_allocator(
             sizeof(HexCoord),
             bump_allocator_alloc,
