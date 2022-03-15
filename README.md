@@ -4,6 +4,9 @@
 
 A clone of Hexic HD, written in C using the SDL2 library.
 
+The game is currently incomplete, but playable.
+You can try the demo [here](https://ncmiller.dev/wasm/hectic_hexagons/).
+
 ### Install Dependencies
 
 MacOS:
